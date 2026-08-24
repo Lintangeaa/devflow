@@ -31,6 +31,7 @@ export type Phase = { id: string; name: string; order: number; color: string };
 export type TicketWithMeta = Ticket & {
   id: string;
   bugDetails?: BugDetails | null;
+  position?: number;
   phaseName?: string;
   assigneeName?: string | null;
   parentHeadline?: string | null;
@@ -71,6 +72,44 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AutoResizeTextarea({
+  value,
+  onChange,
+  placeholder,
+  rows = 2,
+  className,
+  required,
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  rows?: number;
+  className?: string;
+  required?: boolean;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      const scrollH = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = `${Math.max(rows * 26, scrollH)}px`;
+    }
+  }, [value, rows]);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      required={required}
+      rows={rows}
+      className={className}
+    />
+  );
 }
 
 export function TicketDetailModal({
@@ -324,10 +363,13 @@ export function TicketDetailModal({
   const fieldClass =
     "h-9 rounded-lg border bg-background px-3 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary";
 
+  const textareaClass =
+    "w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary resize-none overflow-hidden leading-relaxed";
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-opacity" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 transition-opacity" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl border bg-background p-6 shadow-xl">
           {/* Header */}
           <div className="flex items-start justify-between border-b pb-4">
@@ -364,7 +406,11 @@ export function TicketDetailModal({
           )}
 
           {/* Form Content */}
-          <form id="ticket-detail-form" onSubmit={handleSave} className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+          <form
+            id="ticket-detail-form"
+            onSubmit={handleSave}
+            className="flex-1 overflow-y-auto overscroll-contain py-4 space-y-4 pr-1.5"
+          >
             {/* Linked Bug or Task banner */}
             {ticket.type === "task" && ticket.parentId && ticket.parentHeadline && (
               <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs">
@@ -506,45 +552,49 @@ export function TicketDetailModal({
 
                   <div>
                     <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Given (Kondisi Awal)</label>
-                    <textarea
+                    <AutoResizeTextarea
                       required
                       rows={2}
+                      placeholder="e.g. User login sebagai member di project X"
                       value={bugFields.given}
                       onChange={(e) => setBugFields((prev) => ({ ...prev, given: e.target.value }))}
-                      className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                      className={textareaClass}
                     />
                   </div>
 
                   <div>
                     <label className="mb-1 block text-[11px] font-medium text-muted-foreground">When (Aksi Dilakukan)</label>
-                    <textarea
+                    <AutoResizeTextarea
                       required
                       rows={2}
+                      placeholder="e.g. Menekan tombol 'Export Excel'"
                       value={bugFields.when}
                       onChange={(e) => setBugFields((prev) => ({ ...prev, when: e.target.value }))}
-                      className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                      className={textareaClass}
                     />
                   </div>
 
                   <div>
                     <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Then (Ekspektasi)</label>
-                    <textarea
+                    <AutoResizeTextarea
                       required
                       rows={2}
+                      placeholder="e.g. File xlsx berhasil diunduh tanpa error"
                       value={bugFields.then}
                       onChange={(e) => setBugFields((prev) => ({ ...prev, then: e.target.value }))}
-                      className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                      className={textareaClass}
                     />
                   </div>
 
                   <div>
                     <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Output (Hasil Aktual / Error)</label>
-                    <textarea
+                    <AutoResizeTextarea
                       required
                       rows={2}
+                      placeholder="e.g. Muncul toast error 500 dan unduhan gagal"
                       value={bugFields.output}
                       onChange={(e) => setBugFields((prev) => ({ ...prev, output: e.target.value }))}
-                      className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                      className={textareaClass}
                     />
                   </div>
                 </div>
@@ -554,12 +604,12 @@ export function TicketDetailModal({
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Deskripsi / Detail
                 </label>
-                <textarea
+                <AutoResizeTextarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
                   placeholder="Tambahkan penjelasan, detail reproduksi, atau catatan..."
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                  className={textareaClass}
                 />
               </div>
             )}

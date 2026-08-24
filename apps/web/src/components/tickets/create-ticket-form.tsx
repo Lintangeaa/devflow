@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bug, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -21,6 +21,44 @@ export interface CreateTicketFormProps {
   members: ProjectMember[];
   onClose: () => void;
   onCreated: () => void;
+}
+
+function AutoResizeTextarea({
+  value,
+  onChange,
+  placeholder,
+  rows = 2,
+  className,
+  required,
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  rows?: number;
+  className?: string;
+  required?: boolean;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      const scrollH = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = `${Math.max(rows * 26, scrollH)}px`;
+    }
+  }, [value, rows]);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      required={required}
+      rows={rows}
+      className={className}
+    />
+  );
 }
 
 export function CreateTicketForm({
@@ -148,6 +186,9 @@ export function CreateTicketForm({
 
   const fieldClass =
     "h-9 rounded-lg border bg-background px-3 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary";
+
+  const textareaClass =
+    "w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary resize-none overflow-hidden leading-relaxed";
 
   return (
     <div className="mb-6 rounded-xl border bg-background p-4 shadow-soft">
@@ -291,49 +332,49 @@ export function CreateTicketForm({
 
               <div>
                 <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Given (Kondisi Awal)</label>
-                <textarea
+                <AutoResizeTextarea
                   required
                   rows={2}
                   placeholder="e.g. User login sebagai member di project X"
                   value={bugFields.given}
                   onChange={(e) => setBugFields((prev) => ({ ...prev, given: e.target.value }))}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                  className={textareaClass}
                 />
               </div>
 
               <div>
                 <label className="mb-1 block text-[11px] font-medium text-muted-foreground">When (Aksi Dilakukan)</label>
-                <textarea
+                <AutoResizeTextarea
                   required
                   rows={2}
                   placeholder="e.g. Menekan tombol 'Export Excel'"
                   value={bugFields.when}
                   onChange={(e) => setBugFields((prev) => ({ ...prev, when: e.target.value }))}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                  className={textareaClass}
                 />
               </div>
 
               <div>
                 <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Then (Ekspektasi)</label>
-                <textarea
+                <AutoResizeTextarea
                   required
                   rows={2}
                   placeholder="e.g. File xlsx berhasil diunduh tanpa error"
                   value={bugFields.then}
                   onChange={(e) => setBugFields((prev) => ({ ...prev, then: e.target.value }))}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                  className={textareaClass}
                 />
               </div>
 
               <div>
                 <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Output (Hasil Aktual / Error)</label>
-                <textarea
+                <AutoResizeTextarea
                   required
                   rows={2}
                   placeholder="e.g. Muncul toast error 500 dan unduhan gagal"
                   value={bugFields.output}
                   onChange={(e) => setBugFields((prev) => ({ ...prev, output: e.target.value }))}
-                  className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                  className={textareaClass}
                 />
               </div>
             </div>
@@ -341,12 +382,12 @@ export function CreateTicketForm({
         ) : (
           <div className="sm:col-span-2">
             <label className="mb-1 block text-xs font-medium text-muted-foreground">Deskripsi (opsional)</label>
-            <textarea
+            <AutoResizeTextarea
               placeholder="Deskripsi / acceptance criteria..."
               value={taskDescription}
               onChange={(e) => setTaskDescription(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+              className={textareaClass}
             />
           </div>
         )}
