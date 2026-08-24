@@ -3,16 +3,17 @@ services:
     image: postgres:16-alpine
     container_name: devflow_db
     restart: unless-stopped
+    command: ["postgres", "-c", "port=5438"]
     environment:
       POSTGRES_USER: devflow
       POSTGRES_PASSWORD: devflow
       POSTGRES_DB: devflow
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:5433:5438"
     volumes:
       - devflow_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U devflow"]
+      test: ["CMD-SHELL", "pg_isready -U devflow -p 5438"]
       interval: 10s
       timeout: 5s
       retries: 5

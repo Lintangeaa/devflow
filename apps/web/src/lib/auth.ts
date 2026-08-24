@@ -12,6 +12,11 @@ export const auth = betterAuth({
   session: {
     cookieCache: { enabled: true, maxAge: 5 * 60 },
   },
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: ["X-Forwarded-For"], // real client IP behind nginx
+    },
+  },
 });
 
 export type Session = typeof auth.$Infer.Session;

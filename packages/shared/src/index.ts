@@ -40,7 +40,7 @@ export const ticketSchema = z
     parentId: z.string().uuid().optional().nullable(),
     priority: z.enum(PRIORITIES).default("medium"),
     severity: z.enum(SEVERITIES).optional().nullable(),
-    assigneeId: z.string().uuid().optional().nullable(),
+    assigneeId: z.string().optional().nullable(),
     status: z.string().optional(), // validated against type's statuses in handler
     dueDate: z.string().datetime().optional().nullable(),
     component: z.string().max(120).optional().nullable(),
@@ -65,7 +65,7 @@ const ticketUpdateBase = z.object({
   parentId: z.string().uuid().optional().nullable(),
   priority: z.enum(PRIORITIES).optional(),
   severity: z.enum(SEVERITIES).optional().nullable(),
-  assigneeId: z.string().uuid().optional().nullable(),
+  assigneeId: z.string().optional().nullable(),
   status: z.string().optional(),
   dueDate: z.string().datetime().optional().nullable(),
   component: z.string().max(120).optional().nullable(),
@@ -77,7 +77,7 @@ export const ticketUpdateSchema = ticketUpdateBase; // all fields optional
 export const commentSchema = z.object({ body: z.string().min(1).max(5000) });
 
 export const memberSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string(),
   role: z.enum(PROJECT_MEMBER_ROLES).default("member"),
 });
 

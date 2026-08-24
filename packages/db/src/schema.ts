@@ -45,7 +45,7 @@ export const projects = pgTable(
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     description: text("description"),
-    ownerId: uuid("owner_id").notNull(), // -> betterauth.user.id
+    ownerId: text("owner_id").notNull(), // -> betterauth.user.id (string)
     status: projectStatusEnum("status").default("active").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -73,7 +73,7 @@ export const projectMembers = pgTable(
     projectId: uuid("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    userId: uuid("user_id").notNull(), // -> betterauth.user.id
+    userId: text("user_id").notNull(), // -> betterauth.user.id (string)
     role: projectMemberRoleEnum("role").default("member").notNull(),
     joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -96,8 +96,8 @@ export const tickets = pgTable(
     status: text("status").default("todo").notNull(),
     priority: priorityEnum("priority").default("medium").notNull(),
     severity: severityEnum("severity"),
-    assigneeId: uuid("assignee_id"),
-    creatorId: uuid("creator_id").notNull(), // -> betterauth.user.id
+    assigneeId: text("assignee_id"),
+    creatorId: text("creator_id").notNull(), // -> betterauth.user.id (string)
     dueDate: timestamp("due_date", { withTimezone: true }),
     component: text("component"),
     environment: text("environment"),
@@ -120,7 +120,7 @@ export const comments = pgTable(
     ticketId: uuid("ticket_id")
       .notNull()
       .references(() => tickets.id, { onDelete: "cascade" }),
-    userId: uuid("user_id").notNull(),
+    userId: text("user_id").notNull(), // -> betterauth.user.id
     body: text("body").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -134,7 +134,7 @@ export const media = pgTable(
     ticketId: uuid("ticket_id")
       .notNull()
       .references(() => tickets.id, { onDelete: "cascade" }),
-    uploadedBy: uuid("uploaded_by").notNull(),
+    uploadedBy: text("uploaded_by").notNull(), // -> betterauth.user.id
     fileKey: text("file_key").notNull(), // S3 key
     originalName: text("original_name").notNull(),
     mime: text("mime").notNull(),
@@ -156,7 +156,7 @@ export const activities = pgTable(
     projectId: uuid("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    userId: uuid("user_id").notNull(),
+    userId: text("user_id").notNull(), // -> betterauth.user.id
     action: text("action").notNull(),
     entityType: text("entity_type").notNull(),
     entityId: uuid("entity_id"),
@@ -197,6 +197,7 @@ export const account = pgTable("account", {
   accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
   userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+  issuer: text("issuer"),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
   idToken: text("id_token"),

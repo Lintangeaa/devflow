@@ -8,6 +8,20 @@
       "when": 1787573999348,
       "tag": "0000_flaky_stellaris",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787575739506,
+      "tag": "0001_shiny_jane_foster",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787576246638,
+      "tag": "0002_chilly_living_lightning",
+      "breakpoints": true
     }
   ]
 }
