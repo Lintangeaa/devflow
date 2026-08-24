@@ -80,6 +80,16 @@ export const projectMembers = pgTable(
   (t) => [primaryKey({ columns: [t.projectId, t.userId] }), index("pm_user_idx").on(t.userId)],
 );
 
+export interface BugDetails {
+  feature: string;
+  devices: string;
+  scenario: string;
+  given: string;
+  when: string;
+  then: string;
+  output: string;
+}
+
 export const tickets = pgTable(
   "tickets",
   {
@@ -92,6 +102,8 @@ export const tickets = pgTable(
     type: ticketTypeEnum("type").default("task").notNull(),
     headline: text("headline").notNull(),
     description: text("description"),
+    bugDetails: jsonb("bug_details").$type<BugDetails | null>(),
+    position: integer("position").default(0).notNull(),
     // task status OR bug status — one used depending on type
     status: text("status").default("todo").notNull(),
     priority: priorityEnum("priority").default("medium").notNull(),

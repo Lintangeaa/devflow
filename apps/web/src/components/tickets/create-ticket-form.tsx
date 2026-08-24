@@ -6,13 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { PriorityBadge, SeverityBadge } from "@/components/ui/badge";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
-import { PRIORITIES, SEVERITIES } from "@devflow/shared";
+import { PRIORITIES, SEVERITIES, type BugDetails } from "@devflow/shared";
 import type { Phase } from "@/components/tickets/ticket-detail-modal";
 import type { ProjectMember } from "@/components/projects/members-modal";
-import {
-  serializeStructuredDescription,
-  type StructuredBugDescription,
-} from "./structured-description";
 
 export interface CreateTicketFormProps {
   projectId: string;
@@ -40,7 +36,7 @@ export function CreateTicketForm({
 }: CreateTicketFormProps) {
   const [headline, setHeadline] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
-  const [bugFields, setBugFields] = useState<StructuredBugDescription>({
+  const [bugFields, setBugFields] = useState<BugDetails>({
     feature: "",
     devices: "",
     scenario: "",
@@ -102,7 +98,6 @@ export function CreateTicketForm({
     setSaving(true);
     setError(null);
 
-    let finalDescription: string | null = null;
     if (type === "bug") {
       if (
         !bugFields.feature.trim() ||
@@ -117,9 +112,6 @@ export function CreateTicketForm({
         setSaving(false);
         return;
       }
-      finalDescription = serializeStructuredDescription(bugFields);
-    } else {
-      finalDescription = taskDescription || null;
     }
 
     try {
@@ -129,7 +121,8 @@ export function CreateTicketForm({
         body: JSON.stringify({
           type,
           headline,
-          description: finalDescription,
+          description: type === "task" ? (taskDescription || null) : null,
+          bugDetails: type === "bug" ? bugFields : null,
           phaseId: type === "task" ? (phaseId || null) : null,
           parentId: parentId || null,
           priority,

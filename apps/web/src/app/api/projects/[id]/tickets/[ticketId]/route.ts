@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@devflow/db";
-import { ticketUpdateSchema } from "@devflow/shared";
+import { bugDetailsSchema, ticketUpdateSchema } from "@devflow/shared";
 import { requireProjectMember } from "@/lib/access";
 
 type Ctx = { params: Promise<{ id: string; ticketId: string }> };
@@ -29,6 +29,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
   if (!existing) return NextResponse.json({ error: "ticket not found" }, { status: 404 });
 
+  if (existing.type === "bug" && d.bugDetails !== undefined && d.bugDetails !== null) {
+    const bugParsed = bugDetailsSchema.safeParse(d.bugDetails);
+    if (!bugParsed.success) {
+      return NextResponse.json({ error: bugParsed.error.flatten() }, { status: 400 });
+    }
+  }
+
   const resolvedAt =
     d.status && ["resolved", "closed", "done"].includes(d.status) ? new Date() : undefined;
 
@@ -37,6 +44,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     .set({
       ...(d.headline !== undefined ? { headline: d.headline } : {}),
       ...(d.description !== undefined ? { description: d.description } : {}),
+      ...(d.bugDetails !== undefined ? { bugDetails: d.bugDetails } : {}),
+      ...(d.position !== undefined ? { position: d.position } : {}),
       ...(d.phaseId !== undefined ? { phaseId: d.phaseId } : {}),
       ...(d.priority !== undefined ? { priority: d.priority } : {}),
       ...(d.severity !== undefined ? { severity: d.severity } : {}),

@@ -44,6 +44,8 @@ export async function GET(req: Request, { params }: Ctx) {
       type: schema.tickets.type,
       headline: schema.tickets.headline,
       description: schema.tickets.description,
+      bugDetails: schema.tickets.bugDetails,
+      position: schema.tickets.position,
       status: schema.tickets.status,
       priority: schema.tickets.priority,
       severity: schema.tickets.severity,
@@ -66,7 +68,7 @@ export async function GET(req: Request, { params }: Ctx) {
     .leftJoin(schema.user, eq(schema.tickets.assigneeId, schema.user.id))
     .leftJoin(parentTicket, eq(schema.tickets.parentId, parentTicket.id))
     .where(and(...conds))
-    .orderBy(desc(schema.tickets.createdAt));
+    .orderBy(schema.tickets.position, desc(schema.tickets.createdAt));
 
   const ticketIds = rows.map((r) => r.id);
   const linkedChildTasks =
@@ -80,9 +82,8 @@ export async function GET(req: Request, { params }: Ctx) {
           .from(schema.tickets)
           .where(
             and(
-              eq(schema.tickets.projectId, id),
-              eq(schema.tickets.type, "task"),
               inArray(schema.tickets.parentId, ticketIds),
+              eq(schema.tickets.projectId, id),
             ),
           )
       : [];
@@ -135,6 +136,8 @@ export async function POST(req: Request, { params }: Ctx) {
       type: d.type,
       headline: d.headline,
       description: d.description ?? null,
+      bugDetails: d.bugDetails ?? null,
+      position: d.position ?? 0,
       phaseId: d.phaseId ?? null,
       parentId: d.parentId ?? null,
       priority: d.priority,

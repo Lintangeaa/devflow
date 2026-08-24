@@ -22,18 +22,15 @@ import {
   PRIORITIES,
   SEVERITIES,
   TASK_STATUSES,
+  type BugDetails,
   type Ticket,
 } from "@devflow/shared";
 import type { ProjectMember } from "@/components/projects/members-modal";
-import {
-  parseStructuredDescription,
-  serializeStructuredDescription,
-  type StructuredBugDescription,
-} from "./structured-description";
 
 export type Phase = { id: string; name: string; order: number; color: string };
 export type TicketWithMeta = Ticket & {
   id: string;
+  bugDetails?: BugDetails | null;
   phaseName?: string;
   assigneeName?: string | null;
   parentHeadline?: string | null;
@@ -88,8 +85,7 @@ export function TicketDetailModal({
 }: TicketDetailModalProps) {
   const [headline, setHeadline] = useState("");
   const [description, setDescription] = useState("");
-  const [isStructuredBug, setIsStructuredBug] = useState(false);
-  const [bugFields, setBugFields] = useState<StructuredBugDescription>({
+  const [bugFields, setBugFields] = useState<BugDetails>({
     feature: "",
     devices: "",
     scenario: "",
@@ -149,15 +145,15 @@ export function TicketDetailModal({
       setMediaError(null);
 
       if (ticket.type === "bug") {
-        const parsed = parseStructuredDescription(ticket.description);
-        if (parsed) {
-          setIsStructuredBug(true);
-          setBugFields(parsed);
-        } else {
-          setIsStructuredBug(false);
-        }
-      } else {
-        setIsStructuredBug(false);
+        setBugFields({
+          feature: ticket.bugDetails?.feature ?? "",
+          devices: ticket.bugDetails?.devices ?? "",
+          scenario: ticket.bugDetails?.scenario ?? "",
+          given: ticket.bugDetails?.given ?? "",
+          when: ticket.bugDetails?.when ?? "",
+          then: ticket.bugDetails?.then ?? "",
+          output: ticket.bugDetails?.output ?? "",
+        });
       }
 
       loadMedia(ticket.id);
@@ -202,8 +198,7 @@ export function TicketDetailModal({
     setSaving(true);
     setError(null);
 
-    let finalDescription: string | null = null;
-    if (ticket.type === "bug" && isStructuredBug) {
+    if (ticket.type === "bug") {
       if (
         !bugFields.feature.trim() ||
         !bugFields.devices.trim() ||
@@ -217,9 +212,6 @@ export function TicketDetailModal({
         setSaving(false);
         return;
       }
-      finalDescription = serializeStructuredDescription(bugFields);
-    } else {
-      finalDescription = description || null;
     }
 
     try {
@@ -228,7 +220,8 @@ export function TicketDetailModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           headline,
-          description: finalDescription,
+          description: ticket.type === "task" ? (description || null) : null,
+          bugDetails: ticket.type === "bug" ? bugFields : null,
           phaseId: ticket.type === "task" ? (phaseId || null) : null,
           priority,
           severity: ticket.type === "bug" ? (severity || null) : null,
@@ -467,23 +460,14 @@ export function TicketDetailModal({
               </div>
             </div>
 
-            {/* Description: Structured for Bug (if structured), or Textarea Fallback */}
-            {ticket.type === "bug" && isStructuredBug ? (
+            {/* Description: Structured for Bug (always), or Plain Textarea for Task */}
+            {ticket.type === "bug" ? (
               <div className="space-y-3 rounded-xl border bg-muted/20 p-3.5">
                 <div className="flex items-center justify-between border-b pb-2">
                   <span className="text-xs font-semibold text-foreground">
                     Detail Laporan Bug (7 Field Terstruktur)
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDescription(serializeStructuredDescription(bugFields));
-                      setIsStructuredBug(false);
-                    }}
-                    className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
-                  >
-                    Ubah ke Raw Text
-                  </button>
+                  <span className="text-[10px] text-muted-foreground">Semua field wajib diisi</span>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -567,22 +551,9 @@ export function TicketDetailModal({
               </div>
             ) : (
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-medium text-muted-foreground">
-                    Deskripsi / Detail
-                  </label>
-                  {ticket.type === "bug" && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsStructuredBug(true);
-                      }}
-                      className="text-[11px] text-primary hover:underline"
-                    >
-                      Beralih ke Format 7 Field
-                    </button>
-                  )}
-                </div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Deskripsi / Detail
+                </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}

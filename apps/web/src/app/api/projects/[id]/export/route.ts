@@ -8,6 +8,19 @@ type Ctx = { params: Promise<{ id: string }> };
 const PRIORITY_RANK: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
 const TYPE_LABEL = { task: "Task", bug: "Bug" };
 
+function formatBugDetails(d: schema.BugDetails | null | undefined): string {
+  if (!d) return "";
+  return [
+    `Feature: ${d.feature || ""}`,
+    `Devices: ${d.devices || ""}`,
+    `Scenario: ${d.scenario || ""}`,
+    `Given: ${d.given || ""}`,
+    `When: ${d.when || ""}`,
+    `Then: ${d.then || ""}`,
+    `Output: ${d.output || ""}`,
+  ].join("\n");
+}
+
 export async function GET(_req: Request, { params }: Ctx) {
   const { id } = await params;
   await requireProjectMember(id);
@@ -49,6 +62,11 @@ export async function GET(_req: Request, { params }: Ctx) {
   ws.getRow(1).font = { bold: true };
 
   for (const r of rows) {
+    const desc =
+      r.t.type === "bug" && r.t.bugDetails
+        ? formatBugDetails(r.t.bugDetails)
+        : (r.t.description ?? "");
+
     const rr = ws.addRow({
       id: r.t.id,
       type: TYPE_LABEL[r.t.type as keyof typeof TYPE_LABEL] ?? r.t.type,
@@ -62,7 +80,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       tags: (r.t.tags ?? []).join(", "),
       created: r.t.createdAt?.toISOString().slice(0, 10) ?? "",
       updated: r.t.updatedAt?.toISOString().slice(0, 10) ?? "",
-      description: r.t.description ?? "",
+      description: desc,
     });
     if (r.t.priority && PRIORITY_RANK[r.t.priority] >= 3) {
       rr.getCell("priority").font = { bold: true, color: { argb: "FF9B0000" } };
