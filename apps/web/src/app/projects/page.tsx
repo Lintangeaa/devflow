@@ -7,7 +7,7 @@ import { Header } from "@/components/layout/header";
 import { NewProjectForm } from "@/components/projects/new-project-form";
 import { Badge } from "@/components/ui/badge";
 
-export default async function DashboardPage() {
+export default async function ProjectsPage() {
   const { user } = await requireUser().catch((e) => {
     if (e?.status === 401) redirect("/login");
     throw e;
@@ -35,7 +35,7 @@ export default async function DashboardPage() {
       <main className="mx-auto max-w-5xl p-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">Dashboard</h1>
+            <h1 className="text-2xl font-semibold">Projects</h1>
             <p className="text-sm text-muted-foreground">Halo, {user.name}</p>
           </div>
           <NewProjectForm />

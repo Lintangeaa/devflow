@@ -105,7 +105,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
         reload: loadProjectData,
       }}
     >
-      <div className="min-h-screen flex flex-col bg-background">
+      <div className="h-screen flex flex-col bg-background overflow-hidden">
         <Header />
         <div className="flex flex-1 overflow-hidden">
           <ProjectSidebar projectId={id} />
@@ -115,8 +115,8 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
             <div className="border-b bg-background/95 backdrop-blur-xs px-6 py-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <Link href="/dashboard" className="text-xs text-muted-foreground hover:underline">
-                    ← Kembali ke Dashboard
+                  <Link href="/projects" className="text-xs text-muted-foreground hover:underline">
+                    ← Kembali ke Projects
                   </Link>
                   <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">{project.name}</h1>
                   {project.description && (

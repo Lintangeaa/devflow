@@ -16,15 +16,15 @@ export function Header() {
   }
 
   return (
-    <header className="border-b border-border bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
         <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="font-semibold text-primary">
+          <Link href="/projects" className="font-semibold text-primary">
             Devflow
           </Link>
           <nav className="flex items-center gap-4 text-sm text-muted-foreground">
-            <Link href="/dashboard" className="hover:text-foreground">
-              Dashboard
+            <Link href="/projects" className="hover:text-foreground">
+              Projects
             </Link>
           </nav>
         </div>

@@ -41,7 +41,7 @@ export function ProjectSidebar({ projectId }: ProjectSidebarProps) {
   ];
 
   return (
-    <aside className="w-56 shrink-0 border-r bg-muted/20 p-4 flex flex-col gap-1 min-h-[calc(100vh-3.5rem)]">
+    <aside className="w-56 shrink-0 border-r bg-muted/20 p-4 flex flex-col gap-1 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
       <div className="mb-2 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         Menu Project
       </div>

@@ -5,7 +5,7 @@ import LoginForm from "@/components/auth/login-form";
 
 export default async function LoginPage() {
   const session = await getSession();
-  if (session) redirect("/dashboard");
+  if (session) redirect("/projects");
   return (
     <>
       <AuthHeader />

@@ -88,7 +88,7 @@ export default function ProjectOverviewPage() {
   if (loading || !data) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
-        Memuat overview dashboard...
+        Memuat overview project...
       </div>
     );
   }

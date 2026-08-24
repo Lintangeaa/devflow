@@ -24,7 +24,7 @@ export default function SignupForm() {
       setLoading(false);
       return;
     }
-    router.push("/dashboard");
+    router.push("/projects");
     router.refresh();
   }
 

@@ -23,7 +23,7 @@ export default function LoginForm() {
       setLoading(false);
       return;
     }
-    router.push("/dashboard");
+    router.push("/projects");
     router.refresh();
   }
 
