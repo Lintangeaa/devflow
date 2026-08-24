@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "preserve",
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@devflow/db": ["packages/db/src/index.ts"],
+      "@devflow/db/schema": ["packages/db/src/schema.ts"],
+      "@devflow/shared": ["packages/shared/src/index.ts"]
+    }
+  }
+}

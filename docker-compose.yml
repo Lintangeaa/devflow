@@ -1,0 +1,48 @@
+services:
+  devflow-db:
+    image: postgres:16-alpine
+    container_name: devflow_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: devflow
+      POSTGRES_PASSWORD: devflow
+      POSTGRES_DB: devflow
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - devflow_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  devflow-minio:
+    image: minio/minio:latest
+    container_name: devflow_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: devflow
+      MINIO_ROOT_PASSWORD: devflow-secret
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - devflow_minio_data:/data
+
+  # Uncomment to run the app container (or run as part of CI image):
+  # devflow-web:
+  #   image: devflow:latest
+  #   container_name: devflow_web
+  #   restart: unless-stopped
+  #   ports:
+  #     - "127.0.0.1:3000:3000"
+  #   env_file: ./.env
+  #   depends_on:
+  #     - devflow-db
+  #     - devflow-minio
+
+volumes:
+  devflow_db_data:
+  devflow_minio_data:

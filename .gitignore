@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# next.js
+.next/
+
+# env
+.env
+.env.local
+.env*.local
+.env.production
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# drizzle
+packages/db/migrations/meta/_journal.json.tmp
