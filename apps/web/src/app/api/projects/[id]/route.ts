@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, schema } from "@devflow/db";
-import { ticketSchema } from "@devflow/shared";
-import { HttpError } from "@/lib/api";
 import { requireProjectMember, requireProjectOwner } from "@/lib/access";
 
 type Ctx = { params: Promise<{ id: string }> };

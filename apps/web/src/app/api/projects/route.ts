@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@devflow/db";
 import { projectSchema } from "@devflow/shared";
-import { HttpError, requireUser } from "@/lib/api";
+import { requireUser } from "@/lib/api";
 
 // GET /api/projects — projects that the current user owns or is a member of
 export async function GET() {
