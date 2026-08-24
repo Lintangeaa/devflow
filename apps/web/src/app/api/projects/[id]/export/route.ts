@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { eq, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db, schema } from "@devflow/db";
 import { requireProjectMember } from "@/lib/access";
 
@@ -28,15 +29,19 @@ export async function GET(_req: Request, { params }: Ctx) {
   const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, id)).limit(1);
   if (!project) return new Response("not found", { status: 404 });
 
+  const creatorUser = alias(schema.user, "creator_user");
+
   const rows = await db
     .select({
       t: schema.tickets,
       phaseName: schema.phases.name,
       assigneeName: schema.user.name,
+      creatorName: creatorUser.name,
     })
     .from(schema.tickets)
     .leftJoin(schema.phases, eq(schema.tickets.phaseId, schema.phases.id))
     .leftJoin(schema.user, eq(schema.tickets.assigneeId, schema.user.id))
+    .leftJoin(creatorUser, eq(schema.tickets.creatorId, creatorUser.id))
     .where(eq(schema.tickets.projectId, id))
     .orderBy(sql`${schema.tickets.type} ASC, ${schema.tickets.priority} DESC`);
 
@@ -52,10 +57,12 @@ export async function GET(_req: Request, { params }: Ctx) {
     { header: "Severity", key: "severity", width: 10 },
     { header: "Phase", key: "phase", width: 16 },
     { header: "Assignee", key: "assignee", width: 18 },
+    { header: "Creator", key: "creator", width: 18 },
     { header: "Component", key: "component", width: 16 },
     { header: "Tags", key: "tags", width: 20 },
     { header: "Created", key: "created", width: 20 },
     { header: "Updated", key: "updated", width: 20 },
+    { header: "Resolved", key: "resolved", width: 20 },
     { header: "Description", key: "description", width: 50 },
   ];
 
@@ -76,10 +83,12 @@ export async function GET(_req: Request, { params }: Ctx) {
       severity: r.t.severity ?? "",
       phase: r.phaseName ?? "",
       assignee: r.assigneeName ?? "",
+      creator: r.creatorName ?? "",
       component: r.t.component ?? "",
       tags: (r.t.tags ?? []).join(", "),
       created: r.t.createdAt?.toISOString().slice(0, 10) ?? "",
       updated: r.t.updatedAt?.toISOString().slice(0, 10) ?? "",
+      resolved: r.t.resolvedAt?.toISOString().slice(0, 10) ?? "",
       description: desc,
     });
     if (r.t.priority && PRIORITY_RANK[r.t.priority] >= 3) {

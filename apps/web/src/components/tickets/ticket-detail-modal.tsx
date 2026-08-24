@@ -34,13 +34,31 @@ export type TicketWithMeta = Ticket & {
   position?: number;
   phaseName?: string;
   assigneeName?: string | null;
+  assigneeImage?: string | null;
+  creatorId?: string | null;
+  creatorName?: string | null;
+  creatorImage?: string | null;
   parentHeadline?: string | null;
   parentType?: string | null;
   linkedTaskId?: string | null;
   linkedTaskHeadline?: string | null;
+  resolvedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
+
+function formatDateTime(dateStr?: string | Date | null): string {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "-";
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
 
 type MediaItem = {
   id: string;
@@ -411,6 +429,47 @@ export function TicketDetailModal({
             onSubmit={handleSave}
             className="flex-1 overflow-y-auto overscroll-contain py-4 space-y-4 pr-1.5"
           >
+            {/* Read-only Identity & Timeline Metadata Bar */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-muted/30 px-3.5 py-2.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground/70">Dibuat oleh:</span>
+                <div className="flex items-center gap-1.5 font-medium text-foreground">
+                  <Avatar
+                    name={
+                      ticket.creatorName ||
+                      members.find((m) => m.userId === ticket.creatorId)?.name ||
+                      "Unknown"
+                    }
+                    size="sm"
+                  />
+                  <span>
+                    {ticket.creatorName ||
+                      members.find((m) => m.userId === ticket.creatorId)?.name ||
+                      "Unknown"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground/70">Dibuat:</span>
+                <span className="font-medium text-foreground">{formatDateTime(ticket.createdAt)}</span>
+              </div>
+
+              {ticket.updatedAt && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-muted-foreground/70">Diperbarui:</span>
+                  <span className="font-medium text-foreground">{formatDateTime(ticket.updatedAt)}</span>
+                </div>
+              )}
+
+              {ticket.resolvedAt && (
+                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span className="text-[11px] text-muted-foreground/70">Selesai:</span>
+                  <span>{formatDateTime(ticket.resolvedAt)}</span>
+                </div>
+              )}
+            </div>
+
             {/* Linked Bug or Task banner */}
             {ticket.type === "task" && ticket.parentId && ticket.parentHeadline && (
               <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs">

@@ -472,10 +472,28 @@ function BoardTaskCard({
         </div>
       )}
 
-      {ticket.assigneeName && (
-        <div className="mt-2.5 flex items-center gap-1.5">
-          <Avatar name={ticket.assigneeName} size="sm" />
-          <p className="text-[11px] text-muted-foreground truncate">{ticket.assigneeName}</p>
+      {/* People footer (Creator & Assignee) */}
+      {(ticket.creatorName || ticket.assigneeName) && (
+        <div className="mt-2.5 pt-2 border-t flex items-center justify-between gap-2">
+          {ticket.creatorName ? (
+            <div className="flex items-center gap-1.5 min-w-0" title={`Dibuat oleh ${ticket.creatorName}`}>
+              <Avatar name={ticket.creatorName} size="sm" />
+              <p className="text-[11px] text-muted-foreground truncate max-w-[90px]">
+                {ticket.creatorName}
+              </p>
+            </div>
+          ) : (
+            <div />
+          )}
+
+          {ticket.assigneeName && (
+            <div className="flex items-center gap-1.5 min-w-0" title={`Ditugaskan ke ${ticket.assigneeName}`}>
+              <Avatar name={ticket.assigneeName} size="sm" />
+              <p className="text-[11px] font-medium text-foreground truncate max-w-[90px]">
+                {ticket.assigneeName}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

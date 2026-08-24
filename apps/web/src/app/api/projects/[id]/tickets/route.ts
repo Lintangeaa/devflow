@@ -34,6 +34,7 @@ export async function GET(req: Request, { params }: Ctx) {
   }
 
   const parentTicket = alias(schema.tickets, "parent_ticket");
+  const creatorUser = alias(schema.user, "creator_user");
 
   const rows = await db
     .select({
@@ -60,12 +61,14 @@ export async function GET(req: Request, { params }: Ctx) {
       updatedAt: schema.tickets.updatedAt,
       phaseName: schema.phases.name,
       assigneeName: schema.user.name,
+      creatorName: creatorUser.name,
       parentHeadline: parentTicket.headline,
       parentType: parentTicket.type,
     })
     .from(schema.tickets)
     .leftJoin(schema.phases, eq(schema.tickets.phaseId, schema.phases.id))
     .leftJoin(schema.user, eq(schema.tickets.assigneeId, schema.user.id))
+    .leftJoin(creatorUser, eq(schema.tickets.creatorId, creatorUser.id))
     .leftJoin(parentTicket, eq(schema.tickets.parentId, parentTicket.id))
     .where(and(...conds))
     .orderBy(schema.tickets.position, desc(schema.tickets.createdAt));
