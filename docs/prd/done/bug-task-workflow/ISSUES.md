@@ -1,6 +1,8 @@
 # Bug Triage Workflow — Issues
 
-See `PRD.md` for context, scope, and design decisions.
+See `PRD.md` for context, scope, and design decisions. Reopened — see the
+PRD's changelog note. Everything below "Reopened" was already shipped and
+verified in the first pass; new work is under "Reopened".
 
 ## Navigation restructure
 
@@ -40,9 +42,31 @@ See `PRD.md` for context, scope, and design decisions.
 
 - [x] `TicketCard` (Board) and `TicketDetailModal` — show a linked-bug indicator (headline + link) when a task's `parentId` points to a bug.
 
-## Definition of done
+## Definition of done (original pass)
 
 - [x] `pnpm lint` passes.
 - [x] `pnpm build` passes.
 - [x] Manual browser verification: create bug on Bugs → "Buat Task" → verify bug auto-moves to in_progress → mark task done → verify bug auto-moves to resolved (unless manually closed first) → create a Ticket (production) → confirm it's absent from Bugs and vice versa → check Overview counts/charts match → verify at least 2 Combobox fields (search + colored chip) work correctly → confirm `/projects/[id]` redirects to `/projects/[id]/overview`.
+- [x] Code review pass (`reviewer` agent / `code-review-and-quality` skill) before considering this done.
+
+## Reopened — structured bug description
+
+- [x] `apps/web/src/components/tickets/structured-description.ts` (or similar) — template serialize/parse helpers: `serializeStructuredDescription({feature, devices, scenario, given, when, then, output}) -> string` and `parseStructuredDescription(description: string) -> fields | null` (null when the text doesn't match the template).
+- [x] `apps/web/src/components/tickets/create-ticket-form.tsx` — for `type=bug`, replace the single description textarea with 7 required fields (Feature, Devices, Scenario, Given, When, Then, Output); serialize on submit into `description`.
+- [x] `apps/web/src/components/tickets/ticket-detail-modal.tsx` — for `type=bug`, attempt to parse `description` into the 7 fields on load; render the structured editor if parsing succeeds, otherwise fall back to the existing plain textarea; serialize back into `description` on save (structured mode only).
+
+## Reopened — Fase vs Status fix
+
+- [x] `apps/web/src/components/tickets/create-ticket-form.tsx` — only render the "Fase" `Combobox` when `type === "task"`; omit it entirely for `type === "bug"` (don't send `phaseId` for bugs).
+- [x] `apps/web/src/components/tickets/ticket-detail-modal.tsx` — only render the "Fase" `Combobox` when `ticket.type === "task"`; omit it for bugs (status already covers the bug's kanban position).
+
+## Reopened — Combobox z-index fix
+
+- [x] `apps/web/src/components/ui/combobox.tsx` — raise `Popover.Content`'s z-index above `Dialog.Content`'s (`TicketDetailModal`), so the searchable dropdown always renders on top when opened from inside the modal.
+
+## Definition of done (reopened work)
+
+- [x] `pnpm lint` passes.
+- [x] `pnpm build` passes.
+- [x] Manual browser verification: create a new bug with the 7 structured fields, confirm it saves and re-opens with fields pre-filled correctly; open a bug created before this change (or any ticket with a non-template description) and confirm it falls back to a plain textarea without data loss; confirm "Fase" is absent on bug create/edit forms and still present/working on task create/edit forms; open a Combobox from inside `TicketDetailModal` and confirm it renders fully visible above the modal.
 - [x] Code review pass (`reviewer` agent / `code-review-and-quality` skill) before considering this done.

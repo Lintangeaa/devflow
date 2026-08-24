@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useProject } from "../layout";
+import { useProject } from "@/components/projects/project-context";
 import { BugKanban } from "@/components/tickets/bug-kanban";
 
 export default function ProjectBugsPage() {

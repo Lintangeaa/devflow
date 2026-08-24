@@ -25,6 +25,11 @@ import {
   type Ticket,
 } from "@devflow/shared";
 import type { ProjectMember } from "@/components/projects/members-modal";
+import {
+  parseStructuredDescription,
+  serializeStructuredDescription,
+  type StructuredBugDescription,
+} from "./structured-description";
 
 export type Phase = { id: string; name: string; order: number; color: string };
 export type TicketWithMeta = Ticket & {
@@ -63,7 +68,6 @@ interface TicketDetailModalProps {
   onOpenChange: (open: boolean) => void;
   onUpdated: () => void;
   onDeleted: () => void;
-  onSelectTicket?: (ticketId: string) => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -84,6 +88,17 @@ export function TicketDetailModal({
 }: TicketDetailModalProps) {
   const [headline, setHeadline] = useState("");
   const [description, setDescription] = useState("");
+  const [isStructuredBug, setIsStructuredBug] = useState(false);
+  const [bugFields, setBugFields] = useState<StructuredBugDescription>({
+    feature: "",
+    devices: "",
+    scenario: "",
+    given: "",
+    when: "",
+    then: "",
+    output: "",
+  });
+
   const [phaseId, setPhaseId] = useState("");
   const [priority, setPriority] = useState<string>("medium");
   const [severity, setSeverity] = useState<string>("");
@@ -132,6 +147,19 @@ export function TicketDetailModal({
       setAssigneeId(ticket.assigneeId ?? "");
       setError(null);
       setMediaError(null);
+
+      if (ticket.type === "bug") {
+        const parsed = parseStructuredDescription(ticket.description);
+        if (parsed) {
+          setIsStructuredBug(true);
+          setBugFields(parsed);
+        } else {
+          setIsStructuredBug(false);
+        }
+      } else {
+        setIsStructuredBug(false);
+      }
+
       loadMedia(ticket.id);
     }
   }, [ticket, open, loadMedia]);
@@ -174,14 +202,34 @@ export function TicketDetailModal({
     setSaving(true);
     setError(null);
 
+    let finalDescription: string | null = null;
+    if (ticket.type === "bug" && isStructuredBug) {
+      if (
+        !bugFields.feature.trim() ||
+        !bugFields.devices.trim() ||
+        !bugFields.scenario.trim() ||
+        !bugFields.given.trim() ||
+        !bugFields.when.trim() ||
+        !bugFields.then.trim() ||
+        !bugFields.output.trim()
+      ) {
+        setError("Seluruh 7 field deskripsi bug wajib diisi.");
+        setSaving(false);
+        return;
+      }
+      finalDescription = serializeStructuredDescription(bugFields);
+    } else {
+      finalDescription = description || null;
+    }
+
     try {
       const res = await fetch(`/api/projects/${projectId}/tickets/${ticket.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           headline,
-          description: description || null,
-          phaseId: phaseId || null,
+          description: finalDescription,
+          phaseId: ticket.type === "task" ? (phaseId || null) : null,
           priority,
           severity: ticket.type === "bug" ? (severity || null) : null,
           status,
@@ -241,12 +289,14 @@ export function TicketDetailModal({
         {s.replace("_", " ")}
       </Badge>
     ),
+    hideLabel: true,
   }));
 
   const priorityOptions: ComboboxOption[] = PRIORITIES.map((p) => ({
     value: p,
     label: p,
     badge: <PriorityBadge priority={p} />,
+    hideLabel: true,
   }));
 
   const severityOptions: ComboboxOption[] = [
@@ -255,6 +305,7 @@ export function TicketDetailModal({
       value: s,
       label: s,
       badge: <SeverityBadge severity={s} />,
+      hideLabel: true,
     })),
   ];
 
@@ -390,19 +441,21 @@ export function TicketDetailModal({
                 </div>
               )}
 
-              {/* Phase */}
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Fase</label>
-                <Combobox
-                  options={phaseOptions}
-                  value={phaseId}
-                  onChange={setPhaseId}
-                  placeholder="Tanpa Fase"
-                />
-              </div>
+              {/* Phase only shown for Task */}
+              {ticket.type === "task" && (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">Fase</label>
+                  <Combobox
+                    options={phaseOptions}
+                    value={phaseId}
+                    onChange={setPhaseId}
+                    placeholder="Tanpa Fase"
+                  />
+                </div>
+              )}
 
               {/* Assignee */}
-              <div className={ticket.type === "bug" ? "col-span-1 sm:col-span-2 lg:col-span-4" : "col-span-1 sm:col-span-2 lg:col-span-1"}>
+              <div className={ticket.type === "bug" ? "col-span-1 sm:col-span-2 lg:col-span-1" : "col-span-1 sm:col-span-2 lg:col-span-1"}>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Assignee</label>
                 <Combobox
                   options={assigneeOptions}
@@ -414,19 +467,131 @@ export function TicketDetailModal({
               </div>
             </div>
 
-            {/* Description */}
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Deskripsi / Detail
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                placeholder="Tambahkan penjelasan, detail reproduksi, atau catatan..."
-                className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
-              />
-            </div>
+            {/* Description: Structured for Bug (if structured), or Textarea Fallback */}
+            {ticket.type === "bug" && isStructuredBug ? (
+              <div className="space-y-3 rounded-xl border bg-muted/20 p-3.5">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-xs font-semibold text-foreground">
+                    Detail Laporan Bug (7 Field Terstruktur)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDescription(serializeStructuredDescription(bugFields));
+                      setIsStructuredBug(false);
+                    }}
+                    className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    Ubah ke Raw Text
+                  </button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Feature</label>
+                    <input
+                      required
+                      placeholder="e.g. Login Authentication"
+                      value={bugFields.feature}
+                      onChange={(e) => setBugFields((prev) => ({ ...prev, feature: e.target.value }))}
+                      className={`w-full ${fieldClass}`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Devices</label>
+                    <input
+                      required
+                      placeholder="e.g. Chrome macOS, Safari iOS"
+                      value={bugFields.devices}
+                      onChange={(e) => setBugFields((prev) => ({ ...prev, devices: e.target.value }))}
+                      className={`w-full ${fieldClass}`}
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Scenario</label>
+                    <input
+                      required
+                      placeholder="e.g. User gagal export file saat koneksi lambat"
+                      value={bugFields.scenario}
+                      onChange={(e) => setBugFields((prev) => ({ ...prev, scenario: e.target.value }))}
+                      className={`w-full ${fieldClass}`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Given (Kondisi Awal)</label>
+                    <textarea
+                      required
+                      rows={2}
+                      value={bugFields.given}
+                      onChange={(e) => setBugFields((prev) => ({ ...prev, given: e.target.value }))}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">When (Aksi Dilakukan)</label>
+                    <textarea
+                      required
+                      rows={2}
+                      value={bugFields.when}
+                      onChange={(e) => setBugFields((prev) => ({ ...prev, when: e.target.value }))}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Then (Ekspektasi)</label>
+                    <textarea
+                      required
+                      rows={2}
+                      value={bugFields.then}
+                      onChange={(e) => setBugFields((prev) => ({ ...prev, then: e.target.value }))}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Output (Hasil Aktual / Error)</label>
+                    <textarea
+                      required
+                      rows={2}
+                      value={bugFields.output}
+                      onChange={(e) => setBugFields((prev) => ({ ...prev, output: e.target.value }))}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-muted-foreground">
+                    Deskripsi / Detail
+                  </label>
+                  {ticket.type === "bug" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsStructuredBug(true);
+                      }}
+                      className="text-[11px] text-primary hover:underline"
+                    >
+                      Beralih ke Format 7 Field
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={4}
+                  placeholder="Tambahkan penjelasan, detail reproduksi, atau catatan..."
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                />
+              </div>
+            )}
 
             {/* Attachments section */}
             <div className="rounded-xl border bg-muted/20 p-4">

@@ -13,6 +13,7 @@ export interface ComboboxOption {
   color?: string;
   description?: string;
   keywords?: string[];
+  hideLabel?: boolean;
 }
 
 export interface ComboboxProps {
@@ -72,7 +73,9 @@ export function Combobox({
                     style={{ backgroundColor: selectedOption.color }}
                   />
                 )}
-                <span className="truncate">{selectedOption.label}</span>
+                {!selectedOption.hideLabel && (
+                  <span className="truncate">{selectedOption.label}</span>
+                )}
               </>
             ) : (
               <span className="text-muted-foreground">{placeholder}</span>
@@ -86,7 +89,7 @@ export function Combobox({
           align="start"
           sideOffset={4}
           className={cn(
-            "z-50 w-[var(--radix-popover-trigger-width)] min-w-[200px] max-w-[340px] rounded-xl border bg-popover p-1 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95",
+            "z-[100] w-[var(--radix-popover-trigger-width)] min-w-[200px] max-w-[340px] rounded-xl border border-border bg-background p-1 text-foreground shadow-xl outline-none animate-in fade-in-0 zoom-in-95",
             popoverClassName,
           )}
         >
@@ -106,7 +109,7 @@ export function Combobox({
               return text.includes(search.toLowerCase()) ? 1 : 0;
             }}
           >
-            <div className="flex items-center border-b px-2 pb-1.5 pt-1">
+            <div className="flex items-center border-b border-border px-2 pb-1.5 pt-1">
               <Command.Input
                 placeholder={searchPlaceholder}
                 className="w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
@@ -129,8 +132,8 @@ export function Combobox({
                       }}
                       className={cn(
                         "relative flex cursor-pointer select-none items-center gap-2 rounded-lg px-2 py-1.5 text-xs outline-none transition-colors",
-                        "hover:bg-accent hover:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground",
-                        isSelected && "font-medium",
+                        "hover:bg-muted hover:text-foreground aria-selected:bg-muted aria-selected:text-foreground",
+                        isSelected && "font-medium bg-muted/60",
                       )}
                     >
                       <Check
@@ -146,14 +149,16 @@ export function Combobox({
                           style={{ backgroundColor: option.color }}
                         />
                       )}
-                      <div className="flex flex-col flex-1 min-w-0">
-                        <span className="truncate">{option.label}</span>
-                        {option.description && (
-                          <span className="text-[10px] text-muted-foreground truncate">
-                            {option.description}
-                          </span>
-                        )}
-                      </div>
+                      {!option.hideLabel && (
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <span className="truncate">{option.label}</span>
+                          {option.description && (
+                            <span className="text-[10px] text-muted-foreground truncate">
+                              {option.description}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </Command.Item>
                   );
                 })}

@@ -19,7 +19,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useProject } from "../layout";
+import { useProject } from "@/components/projects/project-context";
 import { Badge, PriorityBadge, SeverityBadge, TypeBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { TicketDetailModal, type TicketWithMeta } from "@/components/tickets/ticket-detail-modal";

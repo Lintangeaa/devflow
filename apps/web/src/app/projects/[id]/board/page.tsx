@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Bug, Plus, Sparkles } from "lucide-react";
-import { useProject } from "../layout";
+import { useProject } from "@/components/projects/project-context";
 import { Button } from "@/components/ui/button";
 import { Badge, PriorityBadge, TypeBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";

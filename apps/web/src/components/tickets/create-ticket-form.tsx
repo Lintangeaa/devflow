@@ -9,6 +9,10 @@ import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { PRIORITIES, SEVERITIES } from "@devflow/shared";
 import type { Phase } from "@/components/tickets/ticket-detail-modal";
 import type { ProjectMember } from "@/components/projects/members-modal";
+import {
+  serializeStructuredDescription,
+  type StructuredBugDescription,
+} from "./structured-description";
 
 export interface CreateTicketFormProps {
   projectId: string;
@@ -35,8 +39,18 @@ export function CreateTicketForm({
   onCreated,
 }: CreateTicketFormProps) {
   const [headline, setHeadline] = useState("");
-  const [description, setDescription] = useState("");
-  const [phaseId, setPhaseId] = useState(phases[0]?.id ?? "");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [bugFields, setBugFields] = useState<StructuredBugDescription>({
+    feature: "",
+    devices: "",
+    scenario: "",
+    given: "",
+    when: "",
+    then: "",
+    output: "",
+  });
+
+  const [phaseId, setPhaseId] = useState(type === "task" ? (phases[0]?.id ?? "") : "");
   const [priority, setPriority] = useState<string>("medium");
   const [severity, setSeverity] = useState<string>(type === "bug" ? "minor" : "");
   const [assigneeId, setAssigneeId] = useState<string>("");
@@ -45,21 +59,23 @@ export function CreateTicketForm({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!phaseId && phases.length > 0) {
+    if (type === "task" && !phaseId && phases.length > 0) {
       setPhaseId(phases[0].id);
     }
-  }, [phases, phaseId]);
+  }, [type, phases, phaseId]);
 
   const priorityOptions: ComboboxOption[] = PRIORITIES.map((p) => ({
     value: p,
     label: p,
     badge: <PriorityBadge priority={p} />,
+    hideLabel: true,
   }));
 
   const severityOptions: ComboboxOption[] = SEVERITIES.map((s) => ({
     value: s,
     label: s,
     badge: <SeverityBadge severity={s} />,
+    hideLabel: true,
   }));
 
   const phaseOptions: ComboboxOption[] = [
@@ -86,6 +102,26 @@ export function CreateTicketForm({
     setSaving(true);
     setError(null);
 
+    let finalDescription: string | null = null;
+    if (type === "bug") {
+      if (
+        !bugFields.feature.trim() ||
+        !bugFields.devices.trim() ||
+        !bugFields.scenario.trim() ||
+        !bugFields.given.trim() ||
+        !bugFields.when.trim() ||
+        !bugFields.then.trim() ||
+        !bugFields.output.trim()
+      ) {
+        setError("Seluruh 7 field deskripsi bug (Feature, Devices, Scenario, Given, When, Then, Output) wajib diisi.");
+        setSaving(false);
+        return;
+      }
+      finalDescription = serializeStructuredDescription(bugFields);
+    } else {
+      finalDescription = taskDescription || null;
+    }
+
     try {
       const res = await fetch(`/api/projects/${projectId}/tickets`, {
         method: "POST",
@@ -93,8 +129,8 @@ export function CreateTicketForm({
         body: JSON.stringify({
           type,
           headline,
-          description: description || null,
-          phaseId: phaseId || null,
+          description: finalDescription,
+          phaseId: type === "task" ? (phaseId || null) : null,
           parentId: parentId || null,
           priority,
           severity: type === "bug" ? (severity || undefined) : undefined,
@@ -147,6 +183,7 @@ export function CreateTicketForm({
 
       <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">Judul Tiket</label>
           <input
             required
             placeholder="Judul tiket..."
@@ -166,16 +203,20 @@ export function CreateTicketForm({
           />
         </div>
 
-        <div>
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">Fase</label>
-          <Combobox
-            options={phaseOptions}
-            value={phaseId}
-            onChange={setPhaseId}
-            placeholder="Pilih Fase..."
-          />
-        </div>
+        {/* Fase only shown for Tasks */}
+        {type === "task" && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Fase</label>
+            <Combobox
+              options={phaseOptions}
+              value={phaseId}
+              onChange={setPhaseId}
+              placeholder="Pilih Fase..."
+            />
+          </div>
+        )}
 
+        {/* Severity for Bugs */}
         {type === "bug" && (
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">Severity</label>
@@ -200,7 +241,7 @@ export function CreateTicketForm({
         </div>
 
         {type === "bug" && defaultEnvironment === undefined && (
-          <div className="sm:col-span-2">
+          <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">Environment (opsional)</label>
             <input
               placeholder="e.g. staging, preview, local..."
@@ -211,16 +252,111 @@ export function CreateTicketForm({
           </div>
         )}
 
-        <div className="sm:col-span-2">
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">Deskripsi (opsional)</label>
-          <textarea
-            placeholder="Deskripsi / langkah reproduksi / acceptance criteria..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-            className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
-          />
-        </div>
+        {/* Description: Structured for Bug, Plain for Task */}
+        {type === "bug" ? (
+          <div className="sm:col-span-2 space-y-3 rounded-xl border bg-muted/20 p-3.5">
+            <div className="flex items-center justify-between border-b pb-2">
+              <span className="text-xs font-semibold text-foreground">
+                Detail Laporan Bug (7 Field Terstruktur)
+              </span>
+              <span className="text-[10px] text-muted-foreground">Semua field wajib diisi</span>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Feature</label>
+                <input
+                  required
+                  placeholder="e.g. Login Authentication, Ticket Export"
+                  value={bugFields.feature}
+                  onChange={(e) => setBugFields((prev) => ({ ...prev, feature: e.target.value }))}
+                  className={`w-full ${fieldClass}`}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Devices</label>
+                <input
+                  required
+                  placeholder="e.g. Chrome macOS, Safari iOS 18"
+                  value={bugFields.devices}
+                  onChange={(e) => setBugFields((prev) => ({ ...prev, devices: e.target.value }))}
+                  className={`w-full ${fieldClass}`}
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Scenario</label>
+                <input
+                  required
+                  placeholder="e.g. User gagal export file saat koneksi lambat"
+                  value={bugFields.scenario}
+                  onChange={(e) => setBugFields((prev) => ({ ...prev, scenario: e.target.value }))}
+                  className={`w-full ${fieldClass}`}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Given (Kondisi Awal)</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="e.g. User login sebagai member di project X"
+                  value={bugFields.given}
+                  onChange={(e) => setBugFields((prev) => ({ ...prev, given: e.target.value }))}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[11px] font-medium text-muted-foreground">When (Aksi Dilakukan)</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="e.g. Menekan tombol 'Export Excel'"
+                  value={bugFields.when}
+                  onChange={(e) => setBugFields((prev) => ({ ...prev, when: e.target.value }))}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Then (Ekspektasi)</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="e.g. File xlsx berhasil diunduh tanpa error"
+                  value={bugFields.then}
+                  onChange={(e) => setBugFields((prev) => ({ ...prev, then: e.target.value }))}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Output (Hasil Aktual / Error)</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="e.g. Muncul toast error 500 dan unduhan gagal"
+                  value={bugFields.output}
+                  onChange={(e) => setBugFields((prev) => ({ ...prev, output: e.target.value }))}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Deskripsi (opsional)</label>
+            <textarea
+              placeholder="Deskripsi / acceptance criteria..."
+              value={taskDescription}
+              onChange={(e) => setTaskDescription(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+            />
+          </div>
+        )}
 
         {error && <p className="text-xs text-destructive sm:col-span-2">{error}</p>}
 

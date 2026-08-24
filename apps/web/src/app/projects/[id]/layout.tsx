@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Download, Users } from "lucide-react";
@@ -9,44 +9,11 @@ import { Header } from "@/components/layout/header";
 import { ProjectSidebar } from "@/components/layout/project-sidebar";
 import { Button } from "@/components/ui/button";
 import { MembersModal, type ProjectMember } from "@/components/projects/members-modal";
-import type { Phase } from "@/components/tickets/ticket-detail-modal";
-
-export type ProjectInfo = {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string | null;
-  ownerId: string;
-  status?: string;
-  phases: Phase[];
-};
-
-type SessionUser = {
-  id: string;
-  name: string;
-  email: string;
-};
-
-interface ProjectContextType {
-  project: ProjectInfo | null;
-  phases: Phase[];
-  members: ProjectMember[];
-  sessionUser: SessionUser | null;
-  currentUserRole: string | null;
-  isOwner: boolean;
-  loading: boolean;
-  reload: () => Promise<void>;
-}
-
-const ProjectContext = createContext<ProjectContextType | null>(null);
-
-export function useProject() {
-  const ctx = useContext(ProjectContext);
-  if (!ctx) {
-    throw new Error("useProject must be used within ProjectLayout");
-  }
-  return ctx;
-}
+import {
+  ProjectContext,
+  type ProjectInfo,
+  type SessionUser,
+} from "@/components/projects/project-context";
 
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {
   const { id } = useParams<{ id: string }>();

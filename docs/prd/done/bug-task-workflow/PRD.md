@@ -1,5 +1,13 @@
 # Bug Triage Workflow: Overview, Board, Bugs, Ticket + Searchable Dropdowns
 
+> **Changelog (reopened)**: The original scope below (items 1-10) shipped
+> and was reviewed/verified. Reopened to add: (11) a structured, Gherkin-
+> style description form for bugs/tickets (Feature/Devices/Scenario/Given/
+> When/Then/Output), (12) a fix for the "Fase" field incorrectly showing
+> on bug/ticket forms when bugs are actually grouped by `status`, not
+> `phaseId`, and (13) a fix for the `Combobox` popover rendering behind
+> `TicketDetailModal`'s dialog (z-index collision).
+
 ## Context
 
 Today a project has a single page (`/projects/[id]`) mixing task and bug
@@ -101,6 +109,31 @@ severity/status/phase/assignee from a long native `<select>` is clunky.
    `CreateTicketForm` (on Board/Bugs/Ticket) and `TicketDetailModal`.
 10. Add `cmdk` as a new dependency (`apps/web/package.json`).
 
+### Reopened scope
+
+11. **Structured bug/ticket description** — for `type=bug` only (task
+    description stays a plain textarea). `CreateTicketForm` and
+    `TicketDetailModal` replace the free-text description with 7 required
+    fields: **Feature, Devices, Scenario, Given, When, Then, Output**. On
+    submit, these are serialized into a fixed template string and stored
+    in the existing `tickets.description` column — no schema migration.
+    On edit, `description` is parsed back into the 7 fields if it matches
+    the template; if it doesn't (a bug created before this change, with
+    free-text description), the modal falls back to showing the raw text
+    in a plain textarea (still editable), so existing data is never lost
+    or corrupted.
+12. **Fix: "Fase" field shown for bugs when it shouldn't be** — Bugs/
+    Ticket kanban groups by `status` (`bug_status` enum), not `phaseId`;
+    `phaseId` is meaningless for a bug ticket today, yet `CreateTicketForm`
+    and `TicketDetailModal` always show a "Fase" `Combobox` regardless of
+    ticket type. Fix: the "Fase" field only renders for `type=task`; it's
+    omitted entirely for `type=bug`.
+13. **Fix: `Combobox` popover z-index collision inside `TicketDetailModal`**
+    — `Popover.Content` in `components/ui/combobox.tsx` uses the same
+    `z-50` as `Dialog.Content`, so the searchable dropdown can render
+    behind the modal. Fix: raise the Combobox popover's z-index above the
+    dialog's.
+
 ## Design decisions
 
 - **`environment === "production"` distinguishes Ticket from Bugs, not a
@@ -130,6 +163,19 @@ severity/status/phase/assignee from a long native `<select>` is clunky.
 - **Shared project layout for chrome** — Members/Export/project
   title move to `apps/web/src/app/projects/[id]/layout.tsx` so the 4 route
   pages don't each re-fetch/re-render the same header.
+- **Structured description serialized into the existing `description`
+  column, not new columns** — consistent with this PRD's existing bias
+  toward reusing schema rather than migrating; the 7-field structure is a
+  UI/parsing concern, not a storage concern.
+- **Parse-with-fallback, not a forced migration of old bugs** — a legacy
+  bug's free-text `description` stays editable as-is; only new bugs (or
+  ones already in the template format) get the structured 7-field editor.
+  Forcing every existing bug through the new template would risk losing
+  or garbling data written in an unknown prior shape.
+- **All 7 structured fields required** — a bug report missing any of
+  Feature/Devices/Scenario/Given/When/Then/Output is treated as
+  incomplete, matching how the user's own bug-report template is used in
+  practice.
 
 ## Out of scope
 
@@ -138,6 +184,8 @@ severity/status/phase/assignee from a long native `<select>` is clunky.
 - Any change to Members/Export functionality itself (only where they live in the DOM, per the shared layout).
 - A generic "all tickets across all projects" cross-project dashboard — Overview is per-project.
 - Editing `environment` free-text for arbitrary values beyond the Bugs/Ticket split (still a plain text field on the ticket, just defaulted by which page created it).
+- A "convert legacy description to structured template" tool — legacy bugs stay in plain-textarea fallback mode indefinitely unless someone happens to re-save them in the new template shape.
+- New DB columns/migration for the structured fields.
 
 ## Success criteria
 
@@ -149,3 +197,7 @@ severity/status/phase/assignee from a long native `<select>` is clunky.
 - Every priority/severity/status/phase/assignee field across all create/edit forms is a searchable `Combobox` with colored chips, not a native `<select>`.
 - `pnpm lint` and `pnpm build` pass.
 - Manual browser verification of the full flow: create a bug on Bugs → "Buat Task" → verify bug moved to in_progress → mark task done → verify bug moved to resolved → create a Ticket (production) → verify it does NOT appear on Bugs page and vice versa → check Overview counts/charts reflect the above → verify Combobox search/chip rendering on at least 2 of the replaced fields.
+- Creating a bug/ticket requires all 7 structured fields (Feature/Devices/Scenario/Given/When/Then/Output); the saved `description` is a formatted string containing them.
+- Opening an existing bug created with the new template shows the 7 fields pre-filled and editable; opening a legacy bug (free-text description) shows a plain textarea fallback instead, without data loss.
+- "Fase" no longer appears on any bug/ticket create or edit form; it still appears (and works as before) for tasks.
+- Opening a Combobox from inside `TicketDetailModal` renders it fully visible above the modal, not clipped or hidden behind it.
