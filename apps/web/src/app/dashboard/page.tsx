@@ -5,6 +5,7 @@ import { db, schema } from "@devflow/db";
 import { requireUser } from "@/lib/api";
 import { Header } from "@/components/layout/header";
 import { NewProjectForm } from "@/components/projects/new-project-form";
+import { Badge } from "@/components/ui/badge";
 
 export default async function DashboardPage() {
   const { user } = await requireUser().catch((e) => {
@@ -41,7 +42,7 @@ export default async function DashboardPage() {
         </div>
 
         {projects.length === 0 ? (
-          <div className="rounded-lg border p-10 text-center text-muted-foreground">
+          <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
             Belum ada project. Buat project pertama dengan tombol &quot;New Project&quot;.
           </div>
         ) : (
@@ -50,13 +51,11 @@ export default async function DashboardPage() {
               <Link
                 key={p.id}
                 href={`/projects/${p.id}`}
-                className="rounded-lg border p-5 transition-colors hover:border-primary/60"
+                className="rounded-lg border bg-background p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md"
               >
                 <div className="flex items-center justify-between">
                   <h2 className="font-semibold">{p.name}</h2>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">
-                    {memberships.find((m) => m.projectId === p.id)?.role}
-                  </span>
+                  <Badge>{memberships.find((m) => m.projectId === p.id)?.role}</Badge>
                 </div>
                 <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{p.description}</p>
                 <p className="mt-3 text-xs text-muted-foreground">{p.slug}</p>

@@ -29,7 +29,7 @@ export default function SignupForm() {
   }
 
   return (
-    <div className="w-full max-w-sm space-y-6 rounded-lg border p-6">
+    <div className="w-full max-w-sm space-y-6 rounded-xl border bg-background p-6 shadow-soft">
       <div>
         <h1 className="text-xl font-semibold">Daftar</h1>
         <p className="text-sm text-muted-foreground">Buat akun Devflow</p>
@@ -41,7 +41,7 @@ export default function SignupForm() {
           placeholder="Nama"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+          className="h-9 w-full rounded-lg border bg-transparent px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
         />
         <input
           type="email"
@@ -49,7 +49,7 @@ export default function SignupForm() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+          className="h-9 w-full rounded-lg border bg-transparent px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
         />
         <input
           type="password"
@@ -58,7 +58,7 @@ export default function SignupForm() {
           placeholder="Password (min 8 karakter)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+          className="h-9 w-full rounded-lg border bg-transparent px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
         />
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit" className="w-full" disabled={loading}>

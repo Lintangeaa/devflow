@@ -6,18 +6,13 @@ import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/header";
+import { Badge, PriorityBadge, TypeBadge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
 import { PRIORITIES, type Ticket } from "@devflow/shared";
 
 type Phase = { id: string; name: string; order: number; color: string };
 type ProjectInfo = { id: string; name: string; slug: string; description?: string | null };
 type TicketRow = Ticket & { id: string; phaseName?: string; assigneeName?: string | null };
-
-const PRIORITY_STYLE: Record<string, string> = {
-  low: "bg-slate-100 text-slate-700",
-  medium: "bg-blue-100 text-blue-700",
-  high: "bg-amber-100 text-amber-700",
-  critical: "bg-red-100 text-red-700",
-};
 
 export default function ProjectBoardPage() {
   const { id } = useParams<{ id: string }>();
@@ -105,11 +100,11 @@ export default function ProjectBoardPage() {
             </div>
           )}
           {project.phases.map((phase) => (
-            <div key={phase.id} className="w-72 shrink-0 rounded-lg border bg-muted/40 p-3">
+            <div key={phase.id} className="w-72 shrink-0 rounded-xl border bg-muted/40 p-3">
               <div className="mb-3 flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full" style={{ background: phase.color }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: phase.color }} />
                 <h3 className="font-medium">{phase.name}</h3>
-                <span className="ml-auto text-xs text-muted-foreground">
+                <span className="ml-auto rounded-full bg-background px-2 py-0.5 text-xs text-muted-foreground">
                   {tickets.filter((t) => t.phaseId === phase.id).length}
                 </span>
               </div>
@@ -117,19 +112,23 @@ export default function ProjectBoardPage() {
                 {tickets
                   .filter((t) => t.phaseId === phase.id)
                   .map((t) => (
-                    <div key={t.id} className="rounded-md border bg-background p-3">
-                      <div className="flex items-center gap-2">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium capitalize ${PRIORITY_STYLE[t.priority]}`}>
-                          {t.priority}
-                        </span>
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] capitalize">{t.type}</span>
+                    <div
+                      key={t.id}
+                      className="rounded-lg border bg-background p-3 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-md"
+                    >
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <PriorityBadge priority={t.priority} />
+                        <TypeBadge type={t.type} />
                         {t.status !== "new" && t.status !== "todo" && (
-                          <span className="text-[10px] text-muted-foreground">{(t.status ?? "").replace("_", " ")}</span>
+                          <Badge className="capitalize">{(t.status ?? "").replace("_", " ")}</Badge>
                         )}
                       </div>
                       <p className="mt-2 text-sm font-medium">{t.headline}</p>
                       {t.assigneeName && (
-                        <p className="mt-1 text-xs text-muted-foreground">@{t.assigneeName}</p>
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <Avatar name={t.assigneeName} size="sm" />
+                          <p className="text-xs text-muted-foreground">{t.assigneeName}</p>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -182,8 +181,11 @@ function CreateTicketForm(props: {
     props.onCreated();
   }
 
+  const fieldClass =
+    "h-9 rounded-lg border bg-transparent px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary";
+
   return (
-    <div className="mb-6 rounded-lg border p-4">
+    <div className="mb-6 rounded-xl border bg-background p-4 shadow-soft">
       <h2 className="mb-3 font-medium">Buat {props.type === "bug" ? "Bug" : "Task"} baru</h2>
       <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
         <input
@@ -191,12 +193,12 @@ function CreateTicketForm(props: {
           placeholder="Judul"
           value={headline}
           onChange={(e) => setHeadline(e.target.value)}
-          className="h-9 rounded-md border bg-transparent px-3 text-sm"
+          className={fieldClass}
         />
         <select
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
-          className="h-9 rounded-md border bg-transparent px-3 text-sm"
+          className={fieldClass}
         >
           {PRIORITIES.map((p) => (
             <option key={p} value={p}>{p}</option>
@@ -206,7 +208,7 @@ function CreateTicketForm(props: {
           <select
             value={phaseId}
             onChange={(e) => setPhaseId(e.target.value)}
-            className="h-9 rounded-md border bg-transparent px-3 text-sm"
+            className={fieldClass}
           >
             <option value="">Tanpa fase</option>
             {props.phases.map((p) => (
@@ -218,7 +220,7 @@ function CreateTicketForm(props: {
           <select
             value={severity}
             onChange={(e) => setSeverity(e.target.value)}
-            className="h-9 rounded-md border bg-transparent px-3 text-sm"
+            className={fieldClass}
           >
             <option value="">Severity...</option>
             {["minor", "major", "blocker", "crash"].map((s) => (
@@ -231,7 +233,7 @@ function CreateTicketForm(props: {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          className="rounded-md border bg-transparent px-3 py-2 text-sm sm:col-span-2"
+          className="rounded-lg border bg-transparent px-3 py-2 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary sm:col-span-2"
         />
         {error && <p className="text-sm text-destructive sm:col-span-2">{error}</p>}
         <div className="flex justify-end gap-2 sm:col-span-2">

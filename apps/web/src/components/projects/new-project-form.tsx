@@ -41,7 +41,7 @@ export function NewProjectForm() {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-background p-6 shadow-md">
           <Dialog.Title className="text-lg font-semibold">Buat Project Baru</Dialog.Title>
           <form onSubmit={onSubmit} className="mt-4 space-y-4">
             <input
@@ -49,21 +49,21 @@ export function NewProjectForm() {
               placeholder="Nama project"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+              className="h-9 w-full rounded-lg border bg-transparent px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
             />
             <input
               required
               placeholder="slug (mis: web-admin)"
               value={slug}
               onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
-              className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+              className="h-9 w-full rounded-lg border bg-transparent px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
             />
             <textarea
               placeholder="Deskripsi (opsional)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+              className="w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
             />
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex justify-end gap-2">
