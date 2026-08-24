@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   AlertCircle,
+  Bug,
+  CheckSquare,
   FileIcon,
   Loader2,
   Paperclip,
@@ -12,7 +14,9 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PriorityBadge, SeverityBadge, TypeBadge } from "@/components/ui/badge";
+import { Badge, PriorityBadge, SeverityBadge, TypeBadge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import {
   BUG_STATUSES,
   PRIORITIES,
@@ -27,6 +31,10 @@ export type TicketWithMeta = Ticket & {
   id: string;
   phaseName?: string;
   assigneeName?: string | null;
+  parentHeadline?: string | null;
+  parentType?: string | null;
+  linkedTaskId?: string | null;
+  linkedTaskHeadline?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -55,6 +63,7 @@ interface TicketDetailModalProps {
   onOpenChange: (open: boolean) => void;
   onUpdated: () => void;
   onDeleted: () => void;
+  onSelectTicket?: (ticketId: string) => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -92,21 +101,24 @@ export function TicketDetailModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const loadMedia = useCallback(async (ticketId: string) => {
-    setLoadingMedia(true);
-    setMediaError(null);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/tickets/${ticketId}/media`);
-      if (res.ok) {
-        const data = (await res.json()) as MediaItem[];
-        setMediaList(data);
+  const loadMedia = useCallback(
+    async (ticketId: string) => {
+      setLoadingMedia(true);
+      setMediaError(null);
+      try {
+        const res = await fetch(`/api/projects/${projectId}/tickets/${ticketId}/media`);
+        if (res.ok) {
+          const data = (await res.json()) as MediaItem[];
+          setMediaList(data);
+        }
+      } catch {
+        setMediaError("Gagal memuat attachment");
+      } finally {
+        setLoadingMedia(false);
       }
-    } catch {
-      setMediaError("Gagal memuat attachment");
-    } finally {
-      setLoadingMedia(false);
-    }
-  }, [projectId]);
+    },
+    [projectId],
+  );
 
   // Sync state when ticket changes or modal opens
   useEffect(() => {
@@ -220,6 +232,51 @@ export function TicketDetailModal({
   if (!ticket) return null;
 
   const validStatuses = ticket.type === "bug" ? BUG_STATUSES : TASK_STATUSES;
+
+  const statusOptions: ComboboxOption[] = validStatuses.map((s) => ({
+    value: s,
+    label: s.replace("_", " "),
+    badge: (
+      <Badge className="capitalize text-[10px]">
+        {s.replace("_", " ")}
+      </Badge>
+    ),
+  }));
+
+  const priorityOptions: ComboboxOption[] = PRIORITIES.map((p) => ({
+    value: p,
+    label: p,
+    badge: <PriorityBadge priority={p} />,
+  }));
+
+  const severityOptions: ComboboxOption[] = [
+    { value: "", label: "(Pilih Severity)" },
+    ...SEVERITIES.map((s) => ({
+      value: s,
+      label: s,
+      badge: <SeverityBadge severity={s} />,
+    })),
+  ];
+
+  const phaseOptions: ComboboxOption[] = [
+    { value: "", label: "Tanpa Fase" },
+    ...phases.map((p) => ({
+      value: p.id,
+      label: p.name,
+      color: p.color,
+    })),
+  ];
+
+  const assigneeOptions: ComboboxOption[] = [
+    { value: "", label: "Belum Ditugaskan" },
+    ...members.map((m) => ({
+      value: m.userId,
+      label: m.name,
+      description: m.email,
+      badge: <Avatar name={m.name} size="sm" />,
+    })),
+  ];
+
   const fieldClass =
     "h-9 rounded-lg border bg-background px-3 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary";
 
@@ -231,11 +288,16 @@ export function TicketDetailModal({
           {/* Header */}
           <div className="flex items-start justify-between border-b pb-4">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <TypeBadge type={ticket.type} />
                 <PriorityBadge priority={ticket.priority} />
                 {ticket.type === "bug" && ticket.severity && (
                   <SeverityBadge severity={ticket.severity} />
+                )}
+                {ticket.environment && (
+                  <Badge variant="neutral" className="text-[10px]">
+                    Env: {ticket.environment}
+                  </Badge>
                 )}
               </div>
               <Dialog.Title className="text-lg font-semibold">{ticket.headline}</Dialog.Title>
@@ -259,6 +321,27 @@ export function TicketDetailModal({
 
           {/* Form Content */}
           <form id="ticket-detail-form" onSubmit={handleSave} className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+            {/* Linked Bug or Task banner */}
+            {ticket.type === "task" && ticket.parentId && ticket.parentHeadline && (
+              <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs">
+                <Bug className="h-4 w-4 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-muted-foreground">Terkait dengan Bug: </span>
+                  <span className="font-semibold text-foreground truncate">{ticket.parentHeadline}</span>
+                </div>
+              </div>
+            )}
+
+            {ticket.type === "bug" && ticket.linkedTaskId && ticket.linkedTaskHeadline && (
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs">
+                <CheckSquare className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-muted-foreground">Task Perbaikan: </span>
+                  <span className="font-semibold text-foreground truncate">{ticket.linkedTaskHeadline}</span>
+                </div>
+              </div>
+            )}
+
             {/* Headline */}
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Judul</label>
@@ -270,91 +353,64 @@ export function TicketDetailModal({
               />
             </div>
 
-            {/* Grid properties */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* Grid properties with Combobox */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {/* Status */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Status</label>
-                <select
+                <Combobox
+                  options={statusOptions}
                   value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className={`w-full capitalize ${fieldClass}`}
-                >
-                  {validStatuses.map((s) => (
-                    <option key={s} value={s}>
-                      {s.replace("_", " ")}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setStatus}
+                  placeholder="Pilih Status..."
+                />
               </div>
 
               {/* Priority */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Priority</label>
-                <select
+                <Combobox
+                  options={priorityOptions}
                   value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  className={`w-full capitalize ${fieldClass}`}
-                >
-                  {PRIORITIES.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setPriority}
+                  placeholder="Pilih Priority..."
+                />
               </div>
 
               {/* Severity for bug */}
               {ticket.type === "bug" && (
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">Severity</label>
-                  <select
+                  <Combobox
+                    options={severityOptions}
                     value={severity}
-                    onChange={(e) => setSeverity(e.target.value)}
-                    className={`w-full capitalize ${fieldClass}`}
-                  >
-                    <option value="">(Pilih)</option>
-                    {SEVERITIES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSeverity}
+                    placeholder="Pilih Severity..."
+                  />
                 </div>
               )}
 
               {/* Phase */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Fase</label>
-                <select
+                <Combobox
+                  options={phaseOptions}
                   value={phaseId}
-                  onChange={(e) => setPhaseId(e.target.value)}
-                  className={`w-full ${fieldClass}`}
-                >
-                  <option value="">Tanpa Fase</option>
-                  {phases.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setPhaseId}
+                  placeholder="Tanpa Fase"
+                />
               </div>
 
               {/* Assignee */}
-              <div className={ticket.type === "bug" ? "col-span-2 sm:col-span-4" : "col-span-2 sm:col-span-1"}>
+              <div className={ticket.type === "bug" ? "col-span-1 sm:col-span-2 lg:col-span-4" : "col-span-1 sm:col-span-2 lg:col-span-1"}>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">Assignee</label>
-                <select
+                <Combobox
+                  options={assigneeOptions}
                   value={assigneeId}
-                  onChange={(e) => setAssigneeId(e.target.value)}
-                  className={`w-full ${fieldClass}`}
-                >
-                  <option value="">Belum Ditugaskan</option>
-                  {members.map((m) => (
-                    <option key={m.userId} value={m.userId}>
-                      {m.name} ({m.email})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setAssigneeId}
+                  placeholder="Belum Ditugaskan"
+                  searchPlaceholder="Cari member..."
+                />
               </div>
             </div>
 

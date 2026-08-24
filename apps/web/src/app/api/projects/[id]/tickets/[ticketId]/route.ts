@@ -16,6 +16,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
   }
   const d = parsed.data;
 
+  // Retrieve existing ticket before updating to check type, parentId, and status
+  const [existing] = await db
+    .select({
+      id: schema.tickets.id,
+      type: schema.tickets.type,
+      parentId: schema.tickets.parentId,
+      status: schema.tickets.status,
+    })
+    .from(schema.tickets)
+    .where(and(eq(schema.tickets.id, ticketId), eq(schema.tickets.projectId, id)));
+
+  if (!existing) return NextResponse.json({ error: "ticket not found" }, { status: 404 });
+
   const resolvedAt =
     d.status && ["resolved", "closed", "done"].includes(d.status) ? new Date() : undefined;
 
@@ -39,7 +52,29 @@ export async function PATCH(req: Request, { params }: Ctx) {
     .where(and(eq(schema.tickets.id, ticketId), eq(schema.tickets.projectId, id)))
     .returning();
 
-  if (!updated) return NextResponse.json({ error: "ticket not found" }, { status: 404 });
+  // Auto-sync: when a task ticket becomes 'done' and has a parentId, update parent bug to 'resolved' unless already resolved/closed
+  const effectiveType = d.type ?? existing.type;
+  const effectiveStatus = d.status ?? existing.status;
+  const effectiveParentId = d.parentId !== undefined ? d.parentId : existing.parentId;
+
+  if (effectiveType === "task" && effectiveStatus === "done" && effectiveParentId) {
+    const [parent] = await db
+      .select({ id: schema.tickets.id, type: schema.tickets.type, status: schema.tickets.status })
+      .from(schema.tickets)
+      .where(and(eq(schema.tickets.id, effectiveParentId), eq(schema.tickets.projectId, id)));
+
+    if (parent && parent.type === "bug" && !["resolved", "closed"].includes(parent.status)) {
+      await db
+        .update(schema.tickets)
+        .set({
+          status: "resolved",
+          resolvedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.tickets.id, parent.id));
+    }
+  }
+
   return NextResponse.json(updated);
 }
 

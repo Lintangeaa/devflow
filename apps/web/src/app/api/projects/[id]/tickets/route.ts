@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db, schema } from "@devflow/db";
 import { ticketSchema } from "@devflow/shared";
 import { requireProjectMember } from "@/lib/access";
@@ -15,6 +16,7 @@ export async function GET(req: Request, { params }: Ctx) {
   const type = url.searchParams.get("type") as "task" | "bug" | null;
   const priority = url.searchParams.get("priority");
   const phaseId = url.searchParams.get("phase");
+  const environment = url.searchParams.get("environment");
 
   const conds = [eq(schema.tickets.projectId, id)];
   if (type) conds.push(eq(schema.tickets.type, type));
@@ -23,19 +25,82 @@ export async function GET(req: Request, { params }: Ctx) {
   }
   if (phaseId) conds.push(eq(schema.tickets.phaseId, phaseId));
 
+  if (environment === "production") {
+    conds.push(eq(schema.tickets.environment, "production"));
+  } else if (environment === "non_production" || environment === "non-production") {
+    conds.push(or(isNull(schema.tickets.environment), ne(schema.tickets.environment, "production"))!);
+  } else if (environment) {
+    conds.push(eq(schema.tickets.environment, environment));
+  }
+
+  const parentTicket = alias(schema.tickets, "parent_ticket");
+
   const rows = await db
     .select({
-      t: schema.tickets,
+      id: schema.tickets.id,
+      projectId: schema.tickets.projectId,
+      phaseId: schema.tickets.phaseId,
+      parentId: schema.tickets.parentId,
+      type: schema.tickets.type,
+      headline: schema.tickets.headline,
+      description: schema.tickets.description,
+      status: schema.tickets.status,
+      priority: schema.tickets.priority,
+      severity: schema.tickets.severity,
+      assigneeId: schema.tickets.assigneeId,
+      creatorId: schema.tickets.creatorId,
+      dueDate: schema.tickets.dueDate,
+      component: schema.tickets.component,
+      environment: schema.tickets.environment,
+      tags: schema.tickets.tags,
+      resolvedAt: schema.tickets.resolvedAt,
+      createdAt: schema.tickets.createdAt,
+      updatedAt: schema.tickets.updatedAt,
       phaseName: schema.phases.name,
       assigneeName: schema.user.name,
+      parentHeadline: parentTicket.headline,
+      parentType: parentTicket.type,
     })
     .from(schema.tickets)
     .leftJoin(schema.phases, eq(schema.tickets.phaseId, schema.phases.id))
     .leftJoin(schema.user, eq(schema.tickets.assigneeId, schema.user.id))
+    .leftJoin(parentTicket, eq(schema.tickets.parentId, parentTicket.id))
     .where(and(...conds))
     .orderBy(desc(schema.tickets.createdAt));
 
-  return NextResponse.json(rows.map((r) => ({ ...r.t, phaseName: r.phaseName, assigneeName: r.assigneeName })));
+  const ticketIds = rows.map((r) => r.id);
+  const linkedChildTasks =
+    ticketIds.length > 0
+      ? await db
+          .select({
+            id: schema.tickets.id,
+            headline: schema.tickets.headline,
+            parentId: schema.tickets.parentId,
+          })
+          .from(schema.tickets)
+          .where(
+            and(
+              eq(schema.tickets.projectId, id),
+              eq(schema.tickets.type, "task"),
+              inArray(schema.tickets.parentId, ticketIds),
+            ),
+          )
+      : [];
+
+  const childTaskMap = new Map<string, { id: string; headline: string }>();
+  for (const task of linkedChildTasks) {
+    if (task.parentId && !childTaskMap.has(task.parentId)) {
+      childTaskMap.set(task.parentId, { id: task.id, headline: task.headline });
+    }
+  }
+
+  return NextResponse.json(
+    rows.map((r) => ({
+      ...r,
+      linkedTaskId: childTaskMap.get(r.id)?.id ?? null,
+      linkedTaskHeadline: childTaskMap.get(r.id)?.headline ?? null,
+    })),
+  );
 }
 
 export async function POST(req: Request, { params }: Ctx) {
@@ -47,6 +112,22 @@ export async function POST(req: Request, { params }: Ctx) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const d = parsed.data;
+
+  // Auto-sync: if creating a task pointing to a bug in 'new'/'open', update bug to 'in_progress'
+  if (d.type === "task" && d.parentId) {
+    const [parent] = await db
+      .select({ id: schema.tickets.id, type: schema.tickets.type, status: schema.tickets.status })
+      .from(schema.tickets)
+      .where(and(eq(schema.tickets.id, d.parentId), eq(schema.tickets.projectId, id)));
+
+    if (parent && parent.type === "bug" && ["new", "open"].includes(parent.status)) {
+      await db
+        .update(schema.tickets)
+        .set({ status: "in_progress", updatedAt: new Date() })
+        .where(eq(schema.tickets.id, parent.id));
+    }
+  }
+
   const [ticket] = await db
     .insert(schema.tickets)
     .values({
@@ -67,5 +148,6 @@ export async function POST(req: Request, { params }: Ctx) {
       tags: d.tags ?? [],
     })
     .returning();
+
   return NextResponse.json(ticket, { status: 201 });
 }
