@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq, and } from "drizzle-orm";
 import { db, schema } from "@devflow/db";
 import { requireProjectMember } from "@/lib/access";
-import { newKey, signedUrl, uploadObject } from "@/lib/s3";
+import { newKey, uploadObject } from "@/lib/s3";
 
 type Ctx = { params: Promise<{ id: string; ticketId: string }> };
 const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -11,14 +11,18 @@ const ALLOWED_MIME = /^image\/(png|jpe?g|gif|webp|avif)$|^video\/(mp4|webm|quick
 export async function GET(_req: Request, { params }: Ctx) {
   const { id, ticketId } = await params;
   await requireProjectMember(id);
+
   const rows = await db
     .select()
     .from(schema.media)
-    .where(and(eq(schema.media.ticketId, ticketId), eq(schema.media.ticketId, ticketId)))
+    .where(eq(schema.media.ticketId, ticketId))
     .orderBy(asc(schema.media.createdAt));
-  const items = await Promise.all(
-    rows.map(async (m) => ({ ...m, url: await signedUrl(m.fileKey) })),
-  );
+
+  const items = rows.map((m) => ({
+    ...m,
+    url: `/api/projects/${id}/tickets/${ticketId}/media/${m.id}`,
+  }));
+
   return NextResponse.json(items);
 }
 
@@ -65,5 +69,11 @@ export async function POST(req: Request, { params }: Ctx) {
     })
     .returning();
 
-  return NextResponse.json({ ...record, url: await signedUrl(key) }, { status: 201 });
+  return NextResponse.json(
+    {
+      ...record,
+      url: `/api/projects/${id}/tickets/${ticketId}/media/${record.id}`,
+    },
+    { status: 201 },
+  );
 }

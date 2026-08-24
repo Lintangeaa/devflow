@@ -1,5 +1,10 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  type GetObjectCommandOutput,
+} from "@aws-sdk/client-s3";
 import { randomUUID } from "node:crypto";
 
 const endpoint = process.env.S3_ENDPOINT ?? "http://localhost:9000";
@@ -30,12 +35,14 @@ export async function deleteObject(key: string): Promise<void> {
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
 
-/** Public/signed URL for serving a stored object (X-Amz-Expires). */
-export async function signedUrl(key: string, expiresIn = 3600): Promise<string> {
-  const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
-  const base = process.env.S3_PUBLIC_URL; // nginx front if set
-  if (base) return `${base.replace(/\/$/, "")}/${key}`;
-  return await getSignedUrl(s3, cmd, { expiresIn });
+export async function getObject(key: string, range?: string): Promise<GetObjectCommandOutput> {
+  return await s3.send(
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Range: range,
+    }),
+  );
 }
 
 export function newKey(dir: string, originalName: string): string {
