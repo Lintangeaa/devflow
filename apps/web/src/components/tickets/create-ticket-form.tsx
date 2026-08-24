@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bug, X } from "lucide-react";
+import { Bug, FileIcon, Loader2, Paperclip, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { PriorityBadge, SeverityBadge } from "@/components/ui/badge";
@@ -21,6 +21,16 @@ export interface CreateTicketFormProps {
   members: ProjectMember[];
   onClose: () => void;
   onCreated: () => void;
+}
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_FILES = 5;
+const ALLOWED_MIME = /^image\/(png|jpe?g|gif|webp|avif)$|^video\/(mp4|webm|quicktime)$/i;
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function AutoResizeTextarea({
@@ -61,6 +71,14 @@ function AutoResizeTextarea({
   );
 }
 
+interface LocalFileItem {
+  id: string;
+  file: File;
+  previewUrl: string;
+  isImage: boolean;
+  isVideo: boolean;
+}
+
 export function CreateTicketForm({
   projectId,
   type,
@@ -91,6 +109,22 @@ export function CreateTicketForm({
   const [environment, setEnvironment] = useState<string>(defaultEnvironment ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savingStatus, setSavingStatus] = useState<string | null>(null);
+
+  const [attachedFiles, setAttachedFiles] = useState<LocalFileItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Clean up object URLs when items are removed or component unmounts
+  const attachedFilesRef = useRef<LocalFileItem[]>(attachedFiles);
+  attachedFilesRef.current = attachedFiles;
+
+  useEffect(() => {
+    return () => {
+      for (const item of attachedFilesRef.current) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (type === "task" && !phaseId && phases.length > 0) {
@@ -131,9 +165,65 @@ export function CreateTicketForm({
     })),
   ];
 
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files;
+    if (!selected || selected.length === 0) return;
+    setError(null);
+
+    const newItems: LocalFileItem[] = [];
+    const currentCount = attachedFiles.length;
+
+    for (let i = 0; i < selected.length; i++) {
+      if (currentCount + newItems.length >= MAX_FILES) {
+        setError(`Maksimal ${MAX_FILES} file attachment yang dapat dilampirkan.`);
+        break;
+      }
+
+      const file = selected[i];
+      const mime = file.type.toLowerCase();
+
+      if (!ALLOWED_MIME.test(mime)) {
+        setError(`File "${file.name}" memiliki tipe yang tidak diizinkan.`);
+        continue;
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        setError(`File "${file.name}" melebihi batas ukuran 50MB.`);
+        continue;
+      }
+
+      newItems.push({
+        id: `${file.name}-${file.lastModified}-${Math.random()}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        isImage: mime.startsWith("image/"),
+        isVideo: mime.startsWith("video/"),
+      });
+    }
+
+    if (newItems.length > 0) {
+      setAttachedFiles((prev) => [...prev, ...newItems]);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  function handleRemoveFile(id: string) {
+    setAttachedFiles((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((item) => item.id !== id);
+    });
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setSavingStatus("Menyimpan tiket...");
     setError(null);
 
     if (type === "bug") {
@@ -148,6 +238,7 @@ export function CreateTicketForm({
       ) {
         setError("Seluruh 7 field deskripsi bug (Feature, Devices, Scenario, Given, When, Then, Output) wajib diisi.");
         setSaving(false);
+        setSavingStatus(null);
         return;
       }
     }
@@ -174,13 +265,32 @@ export function CreateTicketForm({
         const j = await res.json().catch(() => null);
         setError(j?.error?.form?.[0] ?? j?.error ?? "Gagal menyimpan tiket");
         setSaving(false);
+        setSavingStatus(null);
         return;
+      }
+
+      const newTicket = (await res.json()) as { id: string };
+
+      // Upload queued attachments in parallel if any
+      if (attachedFiles.length > 0 && newTicket?.id) {
+        setSavingStatus(`Mengunggah ${attachedFiles.length} file lampiran...`);
+        const uploadPromises = attachedFiles.map(async ({ file }) => {
+          const formData = new FormData();
+          formData.append("file", file);
+          return fetch(`/api/projects/${projectId}/tickets/${newTicket.id}/media`, {
+            method: "POST",
+            body: formData,
+          });
+        });
+
+        await Promise.allSettled(uploadPromises);
       }
 
       onCreated();
     } catch {
-      setError("Terjadi kesalahan jaringan");
+      setError("Terjadi kesalahan jaringan saat menyimpan tiket");
       setSaving(false);
+      setSavingStatus(null);
     }
   }
 
@@ -392,14 +502,107 @@ export function CreateTicketForm({
           </div>
         )}
 
+        {/* Attachments Section */}
+        <div className="sm:col-span-2 rounded-xl border bg-muted/20 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-medium">
+              <Paperclip className="h-3.5 w-3.5" />
+              <span>Lampiran / Bukti ({attachedFiles.length}/{MAX_FILES})</span>
+            </div>
+
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                multiple
+                accept="image/png,image/jpeg,image/gif,image/webp,image/avif,video/mp4,video/webm,video/quicktime"
+                className="hidden"
+                onChange={handleFileSelect}
+                disabled={attachedFiles.length >= MAX_FILES || saving}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1.5"
+                disabled={attachedFiles.length >= MAX_FILES || saving}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                <span>Pilih File Bukti</span>
+              </Button>
+            </div>
+          </div>
+
+          {attachedFiles.length === 0 ? (
+            <p className="py-2 text-center text-xs text-muted-foreground">
+              Belum ada file dipilih. Anda dapat melampirkan screenshot atau video (maks {MAX_FILES} file, maks 50MB/file).
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {attachedFiles.map((item) => (
+                <div
+                  key={item.id}
+                  className="group relative flex flex-col overflow-hidden rounded-lg border bg-background shadow-xs transition-all hover:shadow-md"
+                >
+                  <div className="relative flex h-24 w-full items-center justify-center bg-muted/50 overflow-hidden">
+                    {item.isImage ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={item.previewUrl}
+                        alt={item.file.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : item.isVideo ? (
+                      <video
+                        src={item.previewUrl}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <FileIcon className="h-7 w-7 text-muted-foreground" />
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(item.id)}
+                      disabled={saving}
+                      className="absolute top-1.5 right-1.5 rounded-md bg-black/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive"
+                      title="Hapus file"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="p-2">
+                    <p className="truncate text-[11px] font-medium text-foreground" title={item.file.name}>
+                      {item.file.name}
+                    </p>
+                    <div className="mt-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span>{formatBytes(item.file.size)}</span>
+                      <span className="uppercase">{item.file.type.split("/")[1] || "FILE"}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {error && <p className="text-xs text-destructive sm:col-span-2">{error}</p>}
 
         <div className="flex justify-end gap-2 sm:col-span-2">
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+          <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={saving}>
             Batal
           </Button>
           <Button type="submit" size="sm" disabled={saving}>
-            {saving ? "Menyimpan..." : "Simpan"}
+            {saving ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                {savingStatus || "Menyimpan..."}
+              </>
+            ) : (
+              "Simpan"
+            )}
           </Button>
         </div>
       </form>
