@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { Header } from "@/components/layout/header";
 import { PRIORITIES, type Ticket } from "@devflow/shared";
 
 type Phase = { id: string; name: string; order: number; color: string };
@@ -47,82 +48,97 @@ export default function ProjectBoardPage() {
   }, [session]);
 
   if (isPending || loading) {
-    return <main className="flex min-h-screen items-center justify-center">Memuat...</main>;
+    return (
+      <>
+        <Header />
+        <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">Memuat...</main>
+      </>
+    );
   }
-  if (!project) return <main className="p-6">Project tidak ditemukan.</main>;
+  if (!project) {
+    return (
+      <>
+        <Header />
+        <main className="p-6">Project tidak ditemukan.</main>
+      </>
+    );
+  }
 
   return (
-    <main className="p-6">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <Link href="/dashboard" className="text-sm text-muted-foreground hover:underline">
-            ← Dashboard
-          </Link>
-          <h1 className="mt-1 text-2xl font-semibold">{project.name}</h1>
-          {project.description && <p className="text-sm text-muted-foreground">{project.description}</p>}
-        </div>
-        <div className="flex gap-2">
-          <a href={`/api/projects/${id}/export`} target="_blank">
-            <Button variant="outline">Export Excel</Button>
-          </a>
-          <Button onClick={() => setShowForm("bug")}>+ Bug</Button>
-          <Button variant="secondary" onClick={() => setShowForm("task")}>+ Task</Button>
-        </div>
-      </header>
-
-      {showForm && (
-        <CreateTicketForm
-          projectId={id}
-          type={showForm}
-          phases={project.phases}
-          onClose={() => setShowForm(null)}
-          onCreated={() => {
-            setShowForm(null);
-            load();
-          }}
-        />
-      )}
-
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {project.phases.length === 0 && (
-          <div className="text-sm text-muted-foreground">
-            Project belum punya fase. Buat fase (Planning, Development, QA, ...) lewat tombol kelola fase.
+    <>
+      <Header />
+      <main className="p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <Link href="/dashboard" className="text-sm text-muted-foreground hover:underline">
+              ← Dashboard
+            </Link>
+            <h1 className="mt-1 text-2xl font-semibold">{project.name}</h1>
+            {project.description && <p className="text-sm text-muted-foreground">{project.description}</p>}
           </div>
+          <div className="flex gap-2">
+            <a href={`/api/projects/${id}/export`} target="_blank">
+              <Button variant="outline">Export Excel</Button>
+            </a>
+            <Button onClick={() => setShowForm("bug")}>+ Bug</Button>
+            <Button variant="secondary" onClick={() => setShowForm("task")}>+ Task</Button>
+          </div>
+        </div>
+
+        {showForm && (
+          <CreateTicketForm
+            projectId={id}
+            type={showForm}
+            phases={project.phases}
+            onClose={() => setShowForm(null)}
+            onCreated={() => {
+              setShowForm(null);
+              load();
+            }}
+          />
         )}
-        {project.phases.map((phase) => (
-          <div key={phase.id} className="w-72 shrink-0 rounded-lg border bg-muted/40 p-3">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full" style={{ background: phase.color }} />
-              <h3 className="font-medium">{phase.name}</h3>
-              <span className="ml-auto text-xs text-muted-foreground">
-                {tickets.filter((t) => t.phaseId === phase.id).length}
-              </span>
+
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {project.phases.length === 0 && (
+            <div className="text-sm text-muted-foreground">
+              Project belum punya fase. Buat fase (Planning, Development, QA, ...) lewat tombol kelola fase.
             </div>
-            <div className="space-y-2">
-              {tickets
-                .filter((t) => t.phaseId === phase.id)
-                .map((t) => (
-                  <div key={t.id} className="rounded-md border bg-background p-3">
-                    <div className="flex items-center gap-2">
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium capitalize ${PRIORITY_STYLE[t.priority]}`}>
-                        {t.priority}
-                      </span>
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] capitalize">{t.type}</span>
-                      {t.status !== "new" && t.status !== "todo" && (
-                        <span className="text-[10px] text-muted-foreground">{(t.status ?? "").replace("_", " ")}</span>
+          )}
+          {project.phases.map((phase) => (
+            <div key={phase.id} className="w-72 shrink-0 rounded-lg border bg-muted/40 p-3">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full" style={{ background: phase.color }} />
+                <h3 className="font-medium">{phase.name}</h3>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {tickets.filter((t) => t.phaseId === phase.id).length}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {tickets
+                  .filter((t) => t.phaseId === phase.id)
+                  .map((t) => (
+                    <div key={t.id} className="rounded-md border bg-background p-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium capitalize ${PRIORITY_STYLE[t.priority]}`}>
+                          {t.priority}
+                        </span>
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] capitalize">{t.type}</span>
+                        {t.status !== "new" && t.status !== "todo" && (
+                          <span className="text-[10px] text-muted-foreground">{(t.status ?? "").replace("_", " ")}</span>
+                        )}
+                      </div>
+                      <p className="mt-2 text-sm font-medium">{t.headline}</p>
+                      {t.assigneeName && (
+                        <p className="mt-1 text-xs text-muted-foreground">@{t.assigneeName}</p>
                       )}
                     </div>
-                    <p className="mt-2 text-sm font-medium">{t.headline}</p>
-                    {t.assigneeName && (
-                      <p className="mt-1 text-xs text-muted-foreground">@{t.assigneeName}</p>
-                    )}
-                  </div>
-                ))}
+                  ))}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-    </main>
+          ))}
+        </div>
+      </main>
+    </>
   );
 }
 
