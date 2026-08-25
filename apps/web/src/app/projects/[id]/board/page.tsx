@@ -39,14 +39,13 @@ import {
 
 export default function ProjectBoardPage() {
   const { id } = useParams<{ id: string }>();
-  const { project, phases, members, isOwner, reload: reloadProject } = useProject();
+  const { phases, members } = useProject();
 
   const [tickets, setTickets] = useState<TicketWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<TicketWithMeta | null>(null);
   const [activeTicket, setActiveTicket] = useState<TicketWithMeta | null>(null);
-  const [creatingDefaultPhases, setCreatingDefaultPhases] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -88,44 +87,21 @@ export default function ProjectBoardPage() {
   }, [tickets, filters]);
 
   const ticketsByPhase = useMemo(() => {
-    const map: Record<string, TicketWithMeta[]> = { unphased: [] };
+    const map: Record<string, TicketWithMeta[]> = {};
     for (const p of phases) {
       map[p.id] = [];
     }
+    const defaultPhaseId = sortedPhases[0]?.id;
+
     for (const t of filteredTickets) {
       if (t.phaseId && map[t.phaseId]) {
         map[t.phaseId].push(t);
-      } else {
-        map.unphased.push(t);
+      } else if (defaultPhaseId && map[defaultPhaseId]) {
+        map[defaultPhaseId].push(t);
       }
     }
     return map;
-  }, [filteredTickets, phases]);
-
-  async function createDefaultPhases() {
-    if (!project) return;
-    setCreatingDefaultPhases(true);
-    const defaults = [
-      { name: "Planning", color: "#6366f1", order: 0 },
-      { name: "In Progress", color: "#f59e0b", order: 1 },
-      { name: "Testing / QA", color: "#8b5cf6", order: 2 },
-      { name: "Done", color: "#10b981", order: 3 },
-    ];
-
-    try {
-      for (const phase of defaults) {
-        await fetch(`/api/projects/${project.id}/phases`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(phase),
-        });
-      }
-      await reloadProject();
-      await loadTasks();
-    } finally {
-      setCreatingDefaultPhases(false);
-    }
-  }
+  }, [filteredTickets, phases, sortedPhases]);
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
@@ -147,20 +123,20 @@ export default function ProjectBoardPage() {
 
     // Determine target phase column ID
     let targetPhaseKey = "";
-    if (overId === "unphased" || phases.some((p) => p.id === overId)) {
+    if (phases.some((p) => p.id === overId)) {
       targetPhaseKey = overId;
     } else {
       const overTicket = tickets.find((t) => t.id === overId);
-      if (overTicket) {
-        targetPhaseKey = overTicket.phaseId || "unphased";
+      if (overTicket && overTicket.phaseId) {
+        targetPhaseKey = overTicket.phaseId;
       }
     }
 
     if (!targetPhaseKey) return;
 
-    const targetPhaseId = targetPhaseKey === "unphased" ? null : targetPhaseKey;
+    const targetPhaseId = targetPhaseKey;
     const previousTickets = [...tickets];
-    const isPhaseChanged = (sourceTicket.phaseId ?? null) !== targetPhaseId;
+    const isPhaseChanged = sourceTicket.phaseId !== targetPhaseId;
 
     // Check if moving to last phase (auto-done)
     const isDroppingToLastPhase = lastPhase && targetPhaseId === lastPhase.id;
@@ -184,57 +160,49 @@ export default function ProjectBoardPage() {
       }
     }
 
-    const updatedSource = {
-      ...sourceTicket,
-      phaseId: targetPhaseId,
-      status: newStatus,
-      position: insertIndex,
-    };
-    currentColumnTickets.splice(insertIndex, 0, updatedSource);
-
-    const reorderedTarget = currentColumnTickets.map((t, idx) => ({
-      ...t,
-      position: idx,
-    }));
-
-    const otherTickets = tickets.filter(
-      (t) => t.id !== activeId && (t.phaseId || "unphased") !== targetPhaseKey,
-    );
-
-    const newTickets = [...otherTickets, ...reorderedTarget];
-    setTickets(newTickets);
-    setErrorBanner(null);
-
-    // Persist via PATCH
-    try {
-      const patchBody: { phaseId?: string | null; status?: string; position: number } = {
-        position: insertIndex,
+    // Optimistic UI update
+    setTickets((prev) => {
+      const remaining = prev.filter((t) => t.id !== activeId);
+      const updatedSource: TicketWithMeta = {
+        ...sourceTicket,
+        phaseId: targetPhaseId,
+        status: newStatus,
       };
-      if (isPhaseChanged) {
-        patchBody.phaseId = targetPhaseId;
-      }
-      if (newStatus !== sourceTicket.status) {
-        patchBody.status = newStatus;
-      }
 
+      const targetList = remaining.filter((t) => (t.phaseId ?? null) === targetPhaseId);
+      const otherList = remaining.filter((t) => (t.phaseId ?? null) !== targetPhaseId);
+
+      targetList.splice(insertIndex, 0, updatedSource);
+
+      const reindexedTarget = targetList.map((t, idx) => ({
+        ...t,
+        position: idx * 1000,
+      }));
+
+      return [...otherList, ...reindexedTarget];
+    });
+
+    try {
+      const newPos = insertIndex * 1000;
       const res = await fetch(`/api/projects/${id}/tickets/${activeId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patchBody),
+        body: JSON.stringify({
+          phaseId: targetPhaseId,
+          status: newStatus,
+          position: newPos,
+        }),
       });
 
       if (!res.ok) {
-        throw new Error("Gagal memindahkan task");
+        setTickets(previousTickets);
+        setErrorBanner("Gagal memindahkan task. Perubahan dibatalkan.");
       }
-    } catch (err) {
+    } catch {
       setTickets(previousTickets);
-      setErrorBanner(
-        err instanceof Error ? err.message : "Gagal memindahkan task. Posisi dikembalikan.",
-      );
+      setErrorBanner("Terjadi kesalahan jaringan saat memindahkan task.");
     }
   }
-
-  const unphasedTickets = ticketsByPhase.unphased || [];
 
   return (
     <div className="space-y-6">
@@ -273,30 +241,6 @@ export default function ProjectBoardPage() {
         />
       )}
 
-      {/* If no phases yet */}
-      {phases.length === 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
-          <div>
-            <p className="text-sm font-medium">Project belum memiliki fase alur kerja</p>
-            <p className="text-xs text-muted-foreground">
-              Buat 4 fase standar (Planning, In Progress, Testing, Done) untuk mengelompokkan task.
-            </p>
-          </div>
-          {isOwner && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={creatingDefaultPhases}
-              onClick={createDefaultPhases}
-              className="gap-1.5"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>{creatingDefaultPhases ? "Membuat fase..." : "Buat Fase Standar"}</span>
-            </Button>
-          )}
-        </div>
-      )}
-
       {/* Quick Filter Toolbar */}
       <BoardFilterBar
         filters={filters}
@@ -319,7 +263,7 @@ export default function ProjectBoardPage() {
             icon: Plus,
             onClick: () => setShowCreateForm(true),
           }}
-          className="my-4 py-12"
+          className="my-6 py-12"
         />
       ) : filteredTickets.length === 0 ? (
         <EmptyState
@@ -356,18 +300,6 @@ export default function ProjectBoardPage() {
                 />
               );
             })}
-
-            {/* Unphased column */}
-            {(phases.length === 0 || unphasedTickets.length > 0) && (
-              <TaskDroppableColumn
-                columnId="unphased"
-                title="Tanpa Fase / General"
-                color="#71717a"
-                tickets={unphasedTickets}
-                isDashed
-                onSelectTicket={setSelectedTicket}
-              />
-            )}
           </div>
 
           {/* Drag Overlay */}

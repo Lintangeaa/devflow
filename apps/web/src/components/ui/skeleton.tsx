@@ -136,3 +136,21 @@ export function SkeletonProjects() {
     </div>
   );
 }
+
+export function SkeletonMetricGrid({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between rounded-xl border bg-card/60 p-4 shadow-soft">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-24 rounded" />
+            <Skeleton className="h-7 w-12 rounded-md" />
+            <Skeleton className="h-2.5 w-20 rounded" />
+          </div>
+          <Skeleton className="h-10 w-10 rounded-lg" />
+        </div>
+      ))}
+    </div>
+  );
+}
+

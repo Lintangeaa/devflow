@@ -11,6 +11,7 @@ import { usersRouter } from "./routes/users.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { projectsRouter } from "./routes/projects.js";
 import { ticketsRouter } from "./routes/tickets.js";
+import { myTasksRouter } from "./routes/my-tasks.js";
 
 const app = new Hono();
 
@@ -45,6 +46,7 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => {
 app.route("/api/health", healthRouter);
 app.route("/api/users", usersRouter);
 app.route("/api/notifications", notificationsRouter);
+app.route("/api/my-tasks", myTasksRouter);
 app.route("/api/projects", projectsRouter);
 app.route("/api/projects/:id/tickets", ticketsRouter);
 

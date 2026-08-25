@@ -33,6 +33,7 @@ import type { ProjectMember } from "@/components/projects/members-modal";
 export type Phase = { id: string; name: string; order: number; color: string };
 export type TicketWithMeta = Ticket & {
   id: string;
+  projectId?: string;
   bugDetails?: BugDetails | null;
   position?: number;
   phaseName?: string;
@@ -147,7 +148,36 @@ export function TicketDetailModal({
 }: TicketDetailModalProps) {
   const { data: session } = authClient.useSession();
   const currentUserId = session?.user?.id;
-  const isOwner = members.some((m) => m.userId === currentUserId && m.role === "owner");
+
+  const [internalPhases, setInternalPhases] = useState<Phase[]>(phases);
+  const [internalMembers, setInternalMembers] = useState<ProjectMember[]>(members);
+
+  useEffect(() => {
+    if (phases.length > 0) setInternalPhases(phases);
+  }, [phases]);
+
+  useEffect(() => {
+    if (members.length > 0) setInternalMembers(members);
+  }, [members]);
+
+  useEffect(() => {
+    if (open && projectId) {
+      if (phases.length === 0) {
+        fetch(`/api/projects/${projectId}/phases`)
+          .then((r) => (r.ok ? r.json() : []))
+          .then((d) => setInternalPhases(d))
+          .catch(() => {});
+      }
+      if (members.length === 0) {
+        fetch(`/api/projects/${projectId}/members`)
+          .then((r) => (r.ok ? r.json() : []))
+          .then((d) => setInternalMembers(d))
+          .catch(() => {});
+      }
+    }
+  }, [open, projectId, phases.length, members.length]);
+
+  const isOwner = internalMembers.some((m) => m.userId === currentUserId && m.role === "owner");
 
   const [headline, setHeadline] = useState("");
   const [description, setDescription] = useState("");
@@ -383,7 +413,7 @@ export function TicketDetailModal({
 
   const phaseOptions: ComboboxOption[] = [
     { value: "", label: "Tanpa Fase" },
-    ...phases.map((p) => ({
+    ...internalPhases.map((p) => ({
       value: p.id,
       label: p.name,
       color: p.color,
@@ -392,7 +422,7 @@ export function TicketDetailModal({
 
   const assigneeOptions: ComboboxOption[] = [
     { value: "", label: "Belum Ditugaskan" },
-    ...members.map((m) => ({
+    ...internalMembers.map((m) => ({
       value: m.userId,
       label: m.name,
       description: m.email,
@@ -459,14 +489,14 @@ export function TicketDetailModal({
                   <Avatar
                     name={
                       ticket.creatorName ||
-                      members.find((m) => m.userId === ticket.creatorId)?.name ||
+                      internalMembers.find((m) => m.userId === ticket.creatorId)?.name ||
                       "Unknown"
                     }
                     size="sm"
                   />
                   <span>
                     {ticket.creatorName ||
-                      members.find((m) => m.userId === ticket.creatorId)?.name ||
+                      internalMembers.find((m) => m.userId === ticket.creatorId)?.name ||
                       "Unknown"}
                   </span>
                 </div>

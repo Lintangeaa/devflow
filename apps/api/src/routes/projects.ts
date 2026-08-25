@@ -50,6 +50,13 @@ projectsRouter.get("/", async (c) => {
   );
 });
 
+const DEFAULT_STANDARD_PHASES = [
+  { name: "Planning", color: "#6366f1", order: 0 },
+  { name: "In Progress", color: "#f59e0b", order: 1 },
+  { name: "Testing", color: "#8b5cf6", order: 2 },
+  { name: "Done", color: "#10b981", order: 3 },
+];
+
 // POST /api/projects
 projectsRouter.post("/", async (c) => {
   const user = c.get("user");
@@ -69,7 +76,20 @@ projectsRouter.post("/", async (c) => {
     .insert(schema.projectMembers)
     .values({ projectId: project.id, userId: user.id, role: "owner" });
 
-  return c.json(project, 201);
+  // Automatically create standard 4 workflow phases
+  const phases = await db
+    .insert(schema.phases)
+    .values(
+      DEFAULT_STANDARD_PHASES.map((p) => ({
+        projectId: project.id,
+        name: p.name,
+        color: p.color,
+        order: p.order,
+      })),
+    )
+    .returning();
+
+  return c.json({ ...project, phases }, 201);
 });
 
 // GET /api/projects/:id
@@ -80,11 +100,26 @@ projectsRouter.get("/:id", async (c) => {
   const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, id)).limit(1);
   if (!project) return c.json({ error: "not found" }, 404);
 
-  const phases = await db
+  let phases = await db
     .select()
     .from(schema.phases)
     .where(eq(schema.phases.projectId, id))
     .orderBy(schema.phases.order);
+
+  // Auto-backfill 4 standard phases if project has none
+  if (phases.length === 0) {
+    phases = await db
+      .insert(schema.phases)
+      .values(
+        DEFAULT_STANDARD_PHASES.map((p) => ({
+          projectId: id,
+          name: p.name,
+          color: p.color,
+          order: p.order,
+        })),
+      )
+      .returning();
+  }
 
   return c.json({ ...project, phases });
 });

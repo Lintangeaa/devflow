@@ -92,15 +92,26 @@ async function main() {
     }
   }
 
-  // 5. Create Phases for Project 1
-  const [ph1, ph2, ph3] = await db
+  // 5. Create Standard Phases for all Projects
+  const standardPhases = [
+    { name: "Planning", color: "#6366f1", order: 0 },
+    { name: "In Progress", color: "#f59e0b", order: 1 },
+    { name: "Testing", color: "#8b5cf6", order: 2 },
+    { name: "Done", color: "#10b981", order: 3 },
+  ];
+
+  const p1Phases = await db
     .insert(schema.phases)
-    .values([
-      { projectId: p1.id, name: "Sprint 1 — Foundation", order: 1, color: "#6366f1" },
-      { projectId: p1.id, name: "Sprint 2 — Features", order: 2, color: "#0ea5e9" },
-      { projectId: p1.id, name: "Sprint 3 — Polish & QA", order: 3, color: "#10b981" },
-    ])
+    .values(standardPhases.map((sp) => ({ ...sp, projectId: p1.id })))
     .returning();
+
+  for (const otherProject of [p2, p3]) {
+    await db
+      .insert(schema.phases)
+      .values(standardPhases.map((sp) => ({ ...sp, projectId: otherProject.id })));
+  }
+
+  const [phPlanning, phInProgress, phTesting, phDone] = p1Phases;
 
   // 6. Create Tasks for Project 1
   console.log("📋 Menambahkan Tasks & Bugs...");
@@ -110,7 +121,7 @@ async function main() {
     .values([
       {
         projectId: p1.id,
-        phaseId: ph1.id,
+        phaseId: phDone.id,
         type: "task",
         headline: "Turborepo monorepo setup dengan Hono backend",
         description: "Migrasi backend API dari Next.js custom server.js ke standalone Hono pada port 4000.",
@@ -124,7 +135,7 @@ async function main() {
       },
       {
         projectId: p1.id,
-        phaseId: ph2.id,
+        phaseId: phInProgress.id,
         type: "task",
         headline: "Implementasi Collapsible Sidebar dan AppShell",
         description: "Rombak header lama menjadi left sidebar collapsible (w-64 / w-16 icon rail) dengan shortcut Cmd+B.",
@@ -138,7 +149,7 @@ async function main() {
       },
       {
         projectId: p1.id,
-        phaseId: ph2.id,
+        phaseId: phTesting.id,
         type: "task",
         headline: "Integrasi MinIO S3 media Range 206 video streaming",
         description: "Dukungan streaming video bug reproduction dengan HTTP Range 206 headers.",
@@ -152,7 +163,7 @@ async function main() {
       },
       {
         projectId: p1.id,
-        phaseId: ph3.id,
+        phaseId: phPlanning.id,
         type: "task",
         headline: "Setup automated GitHub Webhook untuk auto-close issue",
         description: "Menerima payload webhook dari GitHub saat PR di-merge dengan tag Fixes #DEV-xxx.",
@@ -173,7 +184,7 @@ async function main() {
     .values([
       {
         projectId: p1.id,
-        phaseId: ph2.id,
+        phaseId: phTesting.id,
         type: "bug",
         headline: "WebSocket connection 401 saat membuka halaman unauthenticated",
         description: "Komponen NotificationBell mencoba upgrade WebSocket sebelum ada sesi login pengguna.",
@@ -197,7 +208,7 @@ async function main() {
       },
       {
         projectId: p1.id,
-        phaseId: ph2.id,
+        phaseId: phInProgress.id,
         type: "bug",
         headline: "Excel export gagal saat deskripsi tiket memiliki karakter emoji",
         description: "Library ExcelJS membutuhkan formatting UTF-8 string agar cell tidak korup.",
@@ -221,7 +232,7 @@ async function main() {
       },
       {
         projectId: p1.id,
-        phaseId: ph1.id,
+        phaseId: phPlanning.id,
         type: "bug",
         headline: "Hydration warning pada Avatar User dropdown saat SSR",
         description: "Inisialisasi state tema menghasilkan perbedaan class dark/light sebelum mount.",
