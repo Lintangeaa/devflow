@@ -23,7 +23,7 @@ export function Header() {
         <div className="flex items-center gap-6">
           <Link href="/projects" className="flex items-center gap-2.5 font-semibold text-primary">
             <Image
-              src="/devflow-logo.png"
+              src="/devflow-logo-v2.png"
               alt="Devflow logo"
               width={32}
               height={32}

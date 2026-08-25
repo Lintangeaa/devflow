@@ -13,9 +13,9 @@ export const metadata: Metadata = {
   title: { default: "Devflow", template: "%s · Devflow" },
   description: "Internal dev team management + bug tracker.",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/devflow-logo.png",
+    icon: "/favicon-v2.ico",
+    shortcut: "/favicon-v2.ico",
+    apple: "/devflow-logo-v2.png",
   },
 };
 
