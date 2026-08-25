@@ -26,6 +26,7 @@ import {
   type Ticket,
 } from "@devflow/shared";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "sonner";
 import { CommentSection } from "./comment-section";
 import type { ProjectMember } from "@/components/projects/members-modal";
 
@@ -44,6 +45,8 @@ export type TicketWithMeta = Ticket & {
   parentType?: string | null;
   linkedTaskId?: string | null;
   linkedTaskHeadline?: string | null;
+  commentCount?: number;
+  mediaCount?: number;
   resolvedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -247,8 +250,11 @@ export function TicketDetailModal({
       const newMedia = (await res.json()) as MediaItem;
       setMediaList((prev) => [...prev, newMedia]);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      toast.success("Attachment berhasil diunggah");
     } catch (err) {
-      setMediaError(err instanceof Error ? err.message : "Gagal mengunggah file");
+      const msg = err instanceof Error ? err.message : "Gagal mengunggah file";
+      setMediaError(msg);
+      toast.error(msg);
     } finally {
       setUploadingMedia(false);
     }
@@ -272,6 +278,7 @@ export function TicketDetailModal({
         !bugFields.output.trim()
       ) {
         setError("Seluruh 7 field deskripsi bug wajib diisi.");
+        toast.error("Seluruh 7 field deskripsi bug wajib diisi.");
         setSaving(false);
         return;
       }
@@ -298,10 +305,13 @@ export function TicketDetailModal({
         throw new Error(j?.error?.form?.[0] ?? j?.error ?? "Gagal menyimpan perubahan");
       }
 
+      toast.success("Perubahan tiket berhasil disimpan");
       onUpdated();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menyimpan perubahan");
+      const msg = err instanceof Error ? err.message : "Gagal menyimpan perubahan";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -324,10 +334,13 @@ export function TicketDetailModal({
         throw new Error(j?.error ?? "Gagal menghapus tiket");
       }
 
+      toast.success(`${ticket.type === "bug" ? "Bug" : "Task"} berhasil dihapus`);
       onDeleted();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menghapus tiket");
+      const msg = err instanceof Error ? err.message : "Gagal menghapus tiket";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setDeleting(false);
     }

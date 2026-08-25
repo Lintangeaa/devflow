@@ -20,10 +20,12 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertCircle, CheckSquare, Plus, PlusCircle } from "lucide-react";
+import { AlertCircle, Bug, CheckSquare, MessageSquare, Paperclip, Plus, PlusCircle, RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, PriorityBadge, SeverityBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
+import { SkeletonBoard } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { CreateTicketForm } from "@/components/tickets/create-ticket-form";
 import {
   TicketDetailModal,
@@ -71,6 +73,7 @@ export function BugKanban({
   members,
 }: BugKanbanProps) {
   const [tickets, setTickets] = useState<TicketWithMeta[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateBug, setShowCreateBug] = useState(false);
   const [taskParentBug, setTaskParentBug] = useState<{ id: string; headline: string } | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<TicketWithMeta | null>(null);
@@ -87,12 +90,16 @@ export function BugKanban({
   );
 
   const loadBugs = useCallback(async () => {
-    const res = await fetch(
-      `/api/projects/${projectId}/tickets?type=bug&environment=${environmentFilter}`,
-    );
-    if (res.ok) {
-      const data = (await res.json()) as TicketWithMeta[];
-      setTickets(data);
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/tickets?type=bug&environment=${environmentFilter}`,
+      );
+      if (res.ok) {
+        const data = (await res.json()) as TicketWithMeta[];
+        setTickets(data);
+      }
+    } finally {
+      setLoading(false);
     }
   }, [projectId, environmentFilter]);
 
@@ -279,51 +286,83 @@ export function BugKanban({
         showSeverity={true}
       />
 
-      {/* 6-Column Kanban with DndContext */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {BUG_STATUSES.map((statusKey) => {
-            const cfg = BUG_STATUS_CONFIG[statusKey] ?? {
-              title: statusKey,
-              color: "#6b7280",
-              bg: "bg-muted/40",
-            };
-            const statusTickets = ticketsByStatus[statusKey] || [];
+      {loading ? (
+        <SkeletonBoard columns={6} />
+      ) : tickets.length === 0 ? (
+        <EmptyState
+          icon={Bug}
+          title={environmentFilter === "production" ? "Belum ada insiden produksi" : "Belum ada laporan bug"}
+          description={
+            environmentFilter === "production"
+              ? "Sistem berjalan stabil dan belum ada catatan laporan insiden di production."
+              : "Semua fitur berjalan lancar. Laporkan bug jika menemukan kendala atau kegagalan sistem."
+          }
+          action={{
+            label: createButtonLabel,
+            icon: Plus,
+            onClick: () => setShowCreateBug(true),
+          }}
+          className="my-4 py-12"
+        />
+      ) : filteredTickets.length === 0 ? (
+        <EmptyState
+          icon={Search}
+          title="Tidak ada bug yang cocok dengan filter"
+          description="Coba ubah kata kunci pencarian atau reset filter untuk melihat semua bug."
+          action={{
+            label: "Reset Filter",
+            icon: RotateCcw,
+            onClick: () => setFilters(defaultFilterState),
+          }}
+          className="my-4 py-12"
+        />
+      ) : (
+        /* 6-Column Kanban with DndContext */
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {BUG_STATUSES.map((statusKey) => {
+              const cfg = BUG_STATUS_CONFIG[statusKey] ?? {
+                title: statusKey,
+                color: "#6b7280",
+                bg: "bg-muted/40",
+              };
+              const statusTickets = ticketsByStatus[statusKey] || [];
 
-            return (
-              <BugDroppableColumn
-                key={statusKey}
-                statusKey={statusKey}
-                config={cfg}
-                tickets={statusTickets}
-                environmentFilter={environmentFilter}
-                onSelectTicket={setSelectedTicket}
-                onCreateTaskForBug={setTaskParentBug}
-              />
-            );
-          })}
-        </div>
+              return (
+                <BugDroppableColumn
+                  key={statusKey}
+                  statusKey={statusKey}
+                  config={cfg}
+                  tickets={statusTickets}
+                  environmentFilter={environmentFilter}
+                  onSelectTicket={setSelectedTicket}
+                  onCreateTaskForBug={setTaskParentBug}
+                />
+              );
+            })}
+          </div>
 
-        {/* Drag Overlay */}
-        <DragOverlay>
-          {activeTicket ? (
-            <div className="rotate-2 opacity-90 scale-105 pointer-events-none">
-              <BugCard
-                ticket={activeTicket}
-                environmentFilter={environmentFilter}
-                onClick={() => {}}
-                onCreateTask={() => {}}
-                isDragging
-              />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          {/* Drag Overlay */}
+          <DragOverlay>
+            {activeTicket ? (
+              <div className="rotate-2 opacity-90 scale-105 pointer-events-none">
+                <BugCard
+                  ticket={activeTicket}
+                  environmentFilter={environmentFilter}
+                  onClick={() => {}}
+                  onCreateTask={() => {}}
+                  isDragging
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      )}
 
       {/* Ticket Detail Modal */}
       <TicketDetailModal
@@ -498,13 +537,13 @@ function BugCard({
         </div>
       )}
 
-      {/* People footer (Creator & Assignee) */}
-      {(ticket.creatorName || ticket.assigneeName) && (
-        <div className="mt-2.5 pt-2 border-t flex items-center justify-between gap-2">
+      {/* People footer (Creator & Assignee) + Meta Badges */}
+      <div className="mt-2.5 pt-2 border-t flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {ticket.creatorName ? (
             <div className="flex items-center gap-1.5 min-w-0" title={`Dibuat oleh ${ticket.creatorName}`}>
               <Avatar name={ticket.creatorName} size="sm" />
-              <p className="text-[11px] text-muted-foreground truncate max-w-[90px]">
+              <p className="text-[11px] text-muted-foreground truncate max-w-[80px]">
                 {ticket.creatorName}
               </p>
             </div>
@@ -512,16 +551,35 @@ function BugCard({
             <div />
           )}
 
-          {ticket.assigneeName && (
-            <div className="flex items-center gap-1.5 min-w-0" title={`Ditugaskan ke ${ticket.assigneeName}`}>
-              <Avatar name={ticket.assigneeName} size="sm" />
-              <p className="text-[11px] font-medium text-foreground truncate max-w-[90px]">
-                {ticket.assigneeName}
-              </p>
+          {/* Comment and Media Counts */}
+          {((ticket.commentCount !== undefined && ticket.commentCount > 0) ||
+            (ticket.mediaCount !== undefined && ticket.mediaCount > 0)) && (
+            <div className="flex items-center gap-1.5 text-muted-foreground text-[10px]">
+              {ticket.commentCount !== undefined && ticket.commentCount > 0 && (
+                <span className="flex items-center gap-0.5" title={`${ticket.commentCount} komentar`}>
+                  <MessageSquare className="h-3 w-3" />
+                  <span>{ticket.commentCount}</span>
+                </span>
+              )}
+              {ticket.mediaCount !== undefined && ticket.mediaCount > 0 && (
+                <span className="flex items-center gap-0.5" title={`${ticket.mediaCount} lampiran`}>
+                  <Paperclip className="h-3 w-3" />
+                  <span>{ticket.mediaCount}</span>
+                </span>
+              )}
             </div>
           )}
         </div>
-      )}
+
+        {ticket.assigneeName && (
+          <div className="flex items-center gap-1.5 min-w-0" title={`Ditugaskan ke ${ticket.assigneeName}`}>
+            <Avatar name={ticket.assigneeName} size="sm" />
+            <p className="text-[11px] font-medium text-foreground truncate max-w-[80px]">
+              {ticket.assigneeName}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

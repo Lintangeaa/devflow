@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { PriorityBadge, SeverityBadge } from "@/components/ui/badge";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
+import { toast } from "sonner";
 import { PRIORITIES, SEVERITIES, type BugDetails } from "@devflow/shared";
 import type { Phase } from "@/components/tickets/ticket-detail-modal";
 import type { ProjectMember } from "@/components/projects/members-modal";
@@ -263,7 +264,9 @@ export function CreateTicketForm({
 
       if (!res.ok) {
         const j = await res.json().catch(() => null);
-        setError(j?.error?.form?.[0] ?? j?.error ?? "Gagal menyimpan tiket");
+        const errMsg = j?.error?.form?.[0] ?? j?.error ?? "Gagal menyimpan tiket";
+        setError(errMsg);
+        toast.error(errMsg);
         setSaving(false);
         setSavingStatus(null);
         return;
@@ -286,9 +289,11 @@ export function CreateTicketForm({
         await Promise.allSettled(uploadPromises);
       }
 
+      toast.success(type === "bug" ? "Laporan bug berhasil dibuat" : "Task baru berhasil dibuat");
       onCreated();
     } catch {
       setError("Terjadi kesalahan jaringan saat menyimpan tiket");
+      toast.error("Terjadi kesalahan jaringan saat menyimpan tiket");
       setSaving(false);
       setSavingStatus(null);
     }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, schema } from "@devflow/db";
 import { ticketSchema } from "@devflow/shared";
@@ -75,22 +75,40 @@ export async function GET(req: Request, { params }: Ctx) {
     .orderBy(schema.tickets.position, desc(schema.tickets.createdAt));
 
   const ticketIds = rows.map((r) => r.id);
-  const linkedChildTasks =
+  const [linkedChildTasks, commentCounts, mediaCounts] =
     ticketIds.length > 0
-      ? await db
-          .select({
-            id: schema.tickets.id,
-            headline: schema.tickets.headline,
-            parentId: schema.tickets.parentId,
-          })
-          .from(schema.tickets)
-          .where(
-            and(
-              inArray(schema.tickets.parentId, ticketIds),
-              eq(schema.tickets.projectId, id),
+      ? await Promise.all([
+          db
+            .select({
+              id: schema.tickets.id,
+              headline: schema.tickets.headline,
+              parentId: schema.tickets.parentId,
+            })
+            .from(schema.tickets)
+            .where(
+              and(
+                inArray(schema.tickets.parentId, ticketIds),
+                eq(schema.tickets.projectId, id),
+              ),
             ),
-          )
-      : [];
+          db
+            .select({
+              ticketId: schema.comments.ticketId,
+              count: count(),
+            })
+            .from(schema.comments)
+            .where(inArray(schema.comments.ticketId, ticketIds))
+            .groupBy(schema.comments.ticketId),
+          db
+            .select({
+              ticketId: schema.media.ticketId,
+              count: count(),
+            })
+            .from(schema.media)
+            .where(inArray(schema.media.ticketId, ticketIds))
+            .groupBy(schema.media.ticketId),
+        ])
+      : [[], [], []];
 
   const childTaskMap = new Map<string, { id: string; headline: string }>();
   for (const task of linkedChildTasks) {
@@ -99,11 +117,23 @@ export async function GET(req: Request, { params }: Ctx) {
     }
   }
 
+  const commentCountMap = new Map<string, number>();
+  for (const c of commentCounts) {
+    commentCountMap.set(c.ticketId, Number(c.count));
+  }
+
+  const mediaCountMap = new Map<string, number>();
+  for (const m of mediaCounts) {
+    mediaCountMap.set(m.ticketId, Number(m.count));
+  }
+
   return NextResponse.json(
     rows.map((r) => ({
       ...r,
       linkedTaskId: childTaskMap.get(r.id)?.id ?? null,
       linkedTaskHeadline: childTaskMap.get(r.id)?.headline ?? null,
+      commentCount: commentCountMap.get(r.id) ?? 0,
+      mediaCount: mediaCountMap.get(r.id) ?? 0,
     })),
   );
 }

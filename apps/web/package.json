@@ -35,6 +35,7 @@
     "react-dom": "^19",
     "recharts": "^2",
     "server-only": "^0.0.1",
+    "sonner": "^2.0.8",
     "tailwind-merge": "^2",
     "ws": "^8.21.3",
     "zod": "^3"

@@ -21,11 +21,13 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertCircle, Bug, Plus, Sparkles } from "lucide-react";
+import { AlertCircle, Bug, MessageSquare, Paperclip, Plus, RotateCcw, Search, Sparkles } from "lucide-react";
 import { useProject } from "@/components/projects/project-context";
 import { Button } from "@/components/ui/button";
 import { Badge, PriorityBadge, TypeBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
+import { SkeletonBoard } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { CreateTicketForm } from "@/components/tickets/create-ticket-form";
 import { TicketDetailModal, type TicketWithMeta } from "@/components/tickets/ticket-detail-modal";
 import {
@@ -40,6 +42,7 @@ export default function ProjectBoardPage() {
   const { project, phases, members, isOwner, reload: reloadProject } = useProject();
 
   const [tickets, setTickets] = useState<TicketWithMeta[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<TicketWithMeta | null>(null);
   const [activeTicket, setActiveTicket] = useState<TicketWithMeta | null>(null);
@@ -56,10 +59,14 @@ export default function ProjectBoardPage() {
   );
 
   const loadTasks = useCallback(async () => {
-    const res = await fetch(`/api/projects/${id}/tickets?type=task`);
-    if (res.ok) {
-      const data = (await res.json()) as TicketWithMeta[];
-      setTickets(data);
+    try {
+      const res = await fetch(`/api/projects/${id}/tickets?type=task`);
+      if (res.ok) {
+        const data = (await res.json()) as TicketWithMeta[];
+        setTickets(data);
+      }
+    } finally {
+      setLoading(false);
     }
   }, [id]);
 
@@ -300,55 +307,83 @@ export default function ProjectBoardPage() {
         showSeverity={false}
       />
 
-      {/* Board Columns View with DndContext */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {sortedPhases.map((phase) => {
-            const phaseTickets = ticketsByPhase[phase.id] || [];
+      {loading ? (
+        <SkeletonBoard columns={Math.max(phases.length, 3)} />
+      ) : tickets.length === 0 ? (
+        <EmptyState
+          icon={Sparkles}
+          title="Belum ada task pada project ini"
+          description="Mulai alur kerja tim dengan membuat task pertama Anda."
+          action={{
+            label: "Buat Task Pertama",
+            icon: Plus,
+            onClick: () => setShowCreateForm(true),
+          }}
+          className="my-4 py-12"
+        />
+      ) : filteredTickets.length === 0 ? (
+        <EmptyState
+          icon={Search}
+          title="Tidak ada task yang cocok dengan filter"
+          description="Coba ubah kata kunci pencarian atau reset filter untuk melihat semua task."
+          action={{
+            label: "Reset Filter",
+            icon: RotateCcw,
+            onClick: () => setFilters(defaultFilterState),
+          }}
+          className="my-4 py-12"
+        />
+      ) : (
+        /* Board Columns View with DndContext */
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {sortedPhases.map((phase) => {
+              const phaseTickets = ticketsByPhase[phase.id] || [];
 
-            return (
+              return (
+                <TaskDroppableColumn
+                  key={phase.id}
+                  columnId={phase.id}
+                  title={phase.name}
+                  color={phase.color}
+                  tickets={phaseTickets}
+                  onSelectTicket={setSelectedTicket}
+                />
+              );
+            })}
+
+            {/* Unphased column */}
+            {(phases.length === 0 || unphasedTickets.length > 0) && (
               <TaskDroppableColumn
-                key={phase.id}
-                columnId={phase.id}
-                title={phase.name}
-                color={phase.color}
-                tickets={phaseTickets}
+                columnId="unphased"
+                title="Tanpa Fase / General"
+                color="#71717a"
+                tickets={unphasedTickets}
+                isDashed
                 onSelectTicket={setSelectedTicket}
               />
-            );
-          })}
+            )}
+          </div>
 
-          {/* Unphased column */}
-          {(phases.length === 0 || unphasedTickets.length > 0) && (
-            <TaskDroppableColumn
-              columnId="unphased"
-              title="Tanpa Fase / General"
-              color="#71717a"
-              tickets={unphasedTickets}
-              isDashed
-              onSelectTicket={setSelectedTicket}
-            />
-          )}
-        </div>
-
-        {/* Drag Overlay */}
-        <DragOverlay>
-          {activeTicket ? (
-            <div className="rotate-2 opacity-90 scale-105 pointer-events-none">
-              <BoardTaskCard
-                ticket={activeTicket}
-                onClick={() => {}}
-                isDragging
-              />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          {/* Drag Overlay */}
+          <DragOverlay>
+            {activeTicket ? (
+              <div className="rotate-2 opacity-90 scale-105 pointer-events-none">
+                <BoardTaskCard
+                  ticket={activeTicket}
+                  onClick={() => {}}
+                  isDragging
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      )}
 
       {/* Ticket Detail Modal */}
       <TicketDetailModal
@@ -494,13 +529,13 @@ function BoardTaskCard({
         </div>
       )}
 
-      {/* People footer (Creator & Assignee) */}
-      {(ticket.creatorName || ticket.assigneeName) && (
-        <div className="mt-2.5 pt-2 border-t flex items-center justify-between gap-2">
+      {/* People footer (Creator & Assignee) + Meta Badges */}
+      <div className="mt-2.5 pt-2 border-t flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {ticket.creatorName ? (
             <div className="flex items-center gap-1.5 min-w-0" title={`Dibuat oleh ${ticket.creatorName}`}>
               <Avatar name={ticket.creatorName} size="sm" />
-              <p className="text-[11px] text-muted-foreground truncate max-w-[90px]">
+              <p className="text-[11px] text-muted-foreground truncate max-w-[80px]">
                 {ticket.creatorName}
               </p>
             </div>
@@ -508,16 +543,35 @@ function BoardTaskCard({
             <div />
           )}
 
-          {ticket.assigneeName && (
-            <div className="flex items-center gap-1.5 min-w-0" title={`Ditugaskan ke ${ticket.assigneeName}`}>
-              <Avatar name={ticket.assigneeName} size="sm" />
-              <p className="text-[11px] font-medium text-foreground truncate max-w-[90px]">
-                {ticket.assigneeName}
-              </p>
+          {/* Comment and Media Counts */}
+          {((ticket.commentCount !== undefined && ticket.commentCount > 0) ||
+            (ticket.mediaCount !== undefined && ticket.mediaCount > 0)) && (
+            <div className="flex items-center gap-1.5 text-muted-foreground text-[10px]">
+              {ticket.commentCount !== undefined && ticket.commentCount > 0 && (
+                <span className="flex items-center gap-0.5" title={`${ticket.commentCount} komentar`}>
+                  <MessageSquare className="h-3 w-3" />
+                  <span>{ticket.commentCount}</span>
+                </span>
+              )}
+              {ticket.mediaCount !== undefined && ticket.mediaCount > 0 && (
+                <span className="flex items-center gap-0.5" title={`${ticket.mediaCount} lampiran`}>
+                  <Paperclip className="h-3 w-3" />
+                  <span>{ticket.mediaCount}</span>
+                </span>
+              )}
             </div>
           )}
         </div>
-      )}
+
+        {ticket.assigneeName && (
+          <div className="flex items-center gap-1.5 min-w-0" title={`Ditugaskan ke ${ticket.assigneeName}`}>
+            <Avatar name={ticket.assigneeName} size="sm" />
+            <p className="text-[11px] font-medium text-foreground truncate max-w-[80px]">
+              {ticket.assigneeName}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

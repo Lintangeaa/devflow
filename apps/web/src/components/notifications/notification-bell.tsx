@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Check, CheckCheck, Inbox } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 export interface NotificationItem {
@@ -125,6 +126,7 @@ export function NotificationBell() {
       if (res.ok) {
         setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
         setUnreadCount(0);
+        toast.success("Semua notifikasi ditandai telah dibaca");
       }
     } finally {
       setLoading(false);

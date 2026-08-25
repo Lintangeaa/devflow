@@ -8,6 +8,7 @@ import { authClient } from "@/lib/auth-client";
 import { Header } from "@/components/layout/header";
 import { ProjectSidebar } from "@/components/layout/project-sidebar";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { MembersModal, type ProjectMember } from "@/components/projects/members-modal";
 import {
   ProjectContext,
@@ -137,7 +138,12 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
                       {members.length}
                     </span>
                   </Button>
-                  <a href={`/api/projects/${id}/export`} target="_blank" rel="noreferrer">
+                  <a
+                    href={`/api/projects/${id}/export`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => toast.info("Laporan Excel sedang diunduh...")}
+                  >
                     <Button variant="outline" size="sm" className="gap-1.5">
                       <Download className="h-4 w-4 text-muted-foreground" />
                       <span>Export Excel</span>

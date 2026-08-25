@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageSquare, Send, Trash2, Loader2 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import type { ProjectMember } from "@/components/projects/members-modal";
 
 export interface CommentUser {
@@ -216,7 +217,12 @@ export function CommentSection({
         setComments((prev) => [...prev, newComment]);
         setBody("");
         setMentionQuery(null);
+        toast.success("Komentar berhasil dikirim");
+      } else {
+        toast.error("Gagal mengirim komentar");
       }
+    } catch {
+      toast.error("Terjadi kesalahan jaringan");
     } finally {
       setSubmitting(false);
     }
@@ -234,7 +240,12 @@ export function CommentSection({
 
       if (res.ok) {
         setComments((prev) => prev.filter((c) => c.id !== commentId));
+        toast.success("Komentar berhasil dihapus");
+      } else {
+        toast.error("Gagal menghapus komentar");
       }
+    } catch {
+      toast.error("Terjadi kesalahan jaringan");
     } finally {
       setDeletingId(null);
     }

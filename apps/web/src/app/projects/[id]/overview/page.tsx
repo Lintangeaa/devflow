@@ -21,6 +21,7 @@ import {
 import { useProject } from "@/components/projects/project-context";
 import { Badge, PriorityBadge, SeverityBadge, TypeBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
+import { SkeletonOverview } from "@/components/ui/skeleton";
 import { TicketDetailModal, type TicketWithMeta } from "@/components/tickets/ticket-detail-modal";
 import { CreateTicketForm } from "@/components/tickets/create-ticket-form";
 
@@ -88,11 +89,7 @@ export default function ProjectOverviewPage() {
   }, [loadOverview]);
 
   if (loading || !data) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
-        Memuat overview project...
-      </div>
-    );
+    return <SkeletonOverview />;
   }
 
   const taskChartData = Object.entries(data.tasks.byStatus).map(([status, count]) => ({

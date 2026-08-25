@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import * as Dialog from "@radix-ui/react-dialog";
 
 export function NewProjectForm() {
@@ -25,10 +26,13 @@ export function NewProjectForm() {
     });
     if (!res.ok) {
       const j = await res.json().catch(() => null);
-      setError(j?.error?.form?.[0] ?? j?.error ?? "Gagal membuat project");
+      const errMsg = j?.error?.form?.[0] ?? j?.error ?? "Gagal membuat project";
+      setError(errMsg);
+      toast.error(errMsg);
       setLoading(false);
       return;
     }
+    toast.success("Project baru berhasil dibuat");
     setOpen(false);
     setName(""); setSlug(""); setDescription("");
     router.refresh();

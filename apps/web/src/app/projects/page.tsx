@@ -6,6 +6,8 @@ import { requireUser } from "@/lib/api";
 import { Header } from "@/components/layout/header";
 import { NewProjectForm } from "@/components/projects/new-project-form";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FolderKanban } from "lucide-react";
 
 export default async function ProjectsPage() {
   const { user } = await requireUser().catch((e) => {
@@ -42,9 +44,12 @@ export default async function ProjectsPage() {
         </div>
 
         {projects.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
-            Belum ada project. Buat project pertama dengan tombol &quot;New Project&quot;.
-          </div>
+          <EmptyState
+            icon={FolderKanban}
+            title="Belum ada project"
+            description="Mulai kelola alur kerja dan pelacakan bug tim Anda dengan membuat project pertama."
+            className="my-8 py-12"
+          />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((p) => (
