@@ -1,5 +1,12 @@
 # PRD — Monorepo Hono Backend Split
 
+> **Changelog (2026-08-25)**: Reopened from `done/`. Added Phase 5 — local
+> Docker Compose full-stack run (all 4 services on this machine) plus a
+> Compose **profiles** mechanism so `devflow-db` and `devflow-minio` can be
+> excluded when running on a server that already has its own Postgres/MinIO.
+> Section 6 (production deployment blockers, Nginx, CI/CD) remains open and
+> out of scope for this pass — see `ISSUES.md` section 6.
+
 ## Context
 
 Devflow currently runs as a unified Next.js 15 App Router application in `apps/web`. While Next.js App Router functions well for server-rendered UI and simple stateless CRUD, integrating persistent stateful features—specifically real-time WebSocket notifications (`/ws/notifications`) and streaming media proxies—required a custom `apps/web/server.js` wrapping `NextNodeServer`.
@@ -78,10 +85,45 @@ Both apps continue sharing `@devflow/db` (Drizzle ORM) and `@devflow/shared` (Zo
 - Create `apps/api/Dockerfile` and update `apps/web/Dockerfile` and `docker-compose.yml`.
 - Verify full test cycle: `pnpm lint`, `pnpm build`, local dev test, and Docker build.
 
+### Phase 5: Local Docker Compose Full-Stack Run & Infra Profile Exclusion
+
+Runs entirely on this machine — not the production server (`alpitech.biz.id`,
+tracked separately in `ISSUES.md` section 6).
+
+- **Goal**: `docker compose up` on this machine builds and starts all four
+  services (`devflow-db`, `devflow-minio`, `devflow-api`, `devflow-web`)
+  healthy, with the full app (login, projects, board, tickets, comments,
+  mentions, notifications, media upload/streaming, export) working end to
+  end through the containers — not `pnpm dev`.
+- **Infra exclusion mechanism**: Docker Compose
+  [profiles](https://docs.docker.com/compose/how-tos/profiles/).
+  - `devflow-db` and `devflow-minio` are tagged `profiles: ["infra"]` in
+    `docker-compose.yml`.
+  - A root `.env` (git-ignored, based on a new `.env.example` entry) sets
+    `COMPOSE_PROFILES=infra` so the default local `docker compose up`
+    keeps today's behavior — all four services start.
+  - On a host that already runs its own Postgres/MinIO, omit `.env` (or set
+    `COMPOSE_PROFILES=` empty) so only `devflow-api` and `devflow-web`
+    start, connecting to the external `DATABASE_URL` / `S3_*` values
+    supplied via that host's own environment.
+  - `devflow-api`'s `depends_on` entries for `devflow-db` and
+    `devflow-minio` are marked `required: false` (Compose Spec) so the
+    stack still starts cleanly when the `infra` profile is not active.
+  - `devflow-api`/`devflow-web`'s `DATABASE_URL`/`S3_*`/auth env values use
+    `${VAR:-default}` substitution (default pointing at the
+    `devflow-db`/`devflow-minio` container hostnames) so a host without the
+    `infra` profile can supply its own values via env/`.env` to point at
+    its existing Postgres/MinIO instead.
+- **Non-goal**: this phase does not change Nginx, CI/CD, or perform the
+  production container swap — those stay tracked under `ISSUES.md`
+  section 6.
+
 ## Out of Scope
 
 - Database schema modifications (`packages/db` remains untouched).
 - Zod schema changes (`packages/shared` remains unchanged single source of truth).
+- Nginx configuration and CI/CD pipeline changes.
+- Production deployment / container swap on `alpitech.biz.id` (tracked separately, see `ISSUES.md` section 6).
 
 ## Success Criteria
 
@@ -93,11 +135,16 @@ Both apps continue sharing `@devflow/db` (Drizzle ORM) and `@devflow/shared` (Zo
 
 ## Definition of Done
 
-- [ ] `apps/api` workspace created with Hono, better-auth, S3, and native WebSocket.
-- [ ] All API routes ported and validated against `@devflow/shared` Zod schemas.
-- [ ] `apps/web/server.js` removed and `apps/web` cleaned up.
-- [ ] Turborepo pipelines configured for `web` and `api`.
-- [ ] Dockerfiles & Docker Compose updated.
-- [ ] `pnpm lint` passes across all packages.
-- [ ] `pnpm build` passes across all packages.
-- [ ] Code review pass (per repo's `code-review-and-quality` skill).
+- [x] `apps/api` workspace created with Hono, better-auth, S3, and native WebSocket.
+- [x] All API routes ported and validated against `@devflow/shared` Zod schemas.
+- [x] `apps/web/server.js` removed and `apps/web` cleaned up.
+- [x] Turborepo pipelines configured for `web` and `api`.
+- [x] Dockerfiles & Docker Compose updated.
+- [x] `pnpm lint` passes across all packages.
+- [x] `pnpm build` passes across all packages.
+- [x] Code review pass (per repo's `code-review-and-quality` skill).
+- [ ] `docker compose up` on this machine starts all four services healthy
+      and the full app works end to end through the containers.
+- [ ] `devflow-db` / `devflow-minio` can be excluded via Compose profiles
+      (`COMPOSE_PROFILES`) without breaking `devflow-api` / `devflow-web`
+      startup.

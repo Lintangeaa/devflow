@@ -3,6 +3,7 @@ services:
     image: postgres:16-alpine
     container_name: devflow_db
     restart: unless-stopped
+    profiles: ["infra"]
     command: ["postgres", "-c", "port=5438"]
     environment:
       POSTGRES_USER: devflow
@@ -22,15 +23,35 @@ services:
     image: minio/minio:latest
     container_name: devflow_minio
     restart: unless-stopped
+    profiles: ["infra"]
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: devflow
       MINIO_ROOT_PASSWORD: devflow-secret
     ports:
-      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:${MINIO_HOST_PORT:-9000}:9000"
       - "127.0.0.1:9001:9001"
     volumes:
       - devflow_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  devflow-minio-init:
+    image: minio/mc:latest
+    container_name: devflow_minio_init
+    profiles: ["infra"]
+    depends_on:
+      devflow-minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://devflow-minio:9000 devflow devflow-secret &&
+      mc mb --ignore-existing local/devflow
+      "
+    restart: "no"
 
   devflow-api:
     build:
@@ -43,20 +64,25 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgresql://devflow:devflow@devflow-db:5438/devflow
-      BETTER_AUTH_SECRET: devflow-secret-super-secure-key-32-chars-long
-      BETTER_AUTH_URL: http://localhost:3000
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
-      S3_ENDPOINT: http://devflow-minio:9000
-      S3_REGION: us-east-1
-      S3_BUCKET: devflow
-      S3_ACCESS_KEY: devflow
-      S3_SECRET_KEY: devflow-secret
+      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://devflow:devflow@devflow-db:5438/devflow}
+      BETTER_AUTH_SECRET: ${COMPOSE_BETTER_AUTH_SECRET:-devflow-secret-super-secure-key-32-chars-long}
+      BETTER_AUTH_URL: ${COMPOSE_BETTER_AUTH_URL:-http://localhost:3000}
+      NEXT_PUBLIC_APP_URL: ${COMPOSE_NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      S3_ENDPOINT: ${COMPOSE_S3_ENDPOINT:-http://devflow-minio:9000}
+      S3_REGION: ${COMPOSE_S3_REGION:-us-east-1}
+      S3_BUCKET: ${COMPOSE_S3_BUCKET:-devflow}
+      S3_ACCESS_KEY: ${COMPOSE_S3_ACCESS_KEY:-devflow}
+      S3_SECRET_KEY: ${COMPOSE_S3_SECRET_KEY:-devflow-secret}
     depends_on:
       devflow-db:
         condition: service_healthy
+        required: false
       devflow-minio:
         condition: service_started
+        required: false
+      devflow-minio-init:
+        condition: service_completed_successfully
+        required: false
 
   devflow-web:
     build:
@@ -70,16 +96,17 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      DATABASE_URL: postgresql://devflow:devflow@devflow-db:5438/devflow
-      API_INTERNAL_URL: http://devflow-api:4000
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
-      BETTER_AUTH_URL: http://localhost:3000
-      BETTER_AUTH_SECRET: devflow-secret-super-secure-key-32-chars-long
+      DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://devflow:devflow@devflow-db:5438/devflow}
+      API_INTERNAL_URL: ${COMPOSE_API_INTERNAL_URL:-http://devflow-api:4000}
+      NEXT_PUBLIC_APP_URL: ${COMPOSE_NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      BETTER_AUTH_URL: ${COMPOSE_BETTER_AUTH_URL:-http://localhost:3000}
+      BETTER_AUTH_SECRET: ${COMPOSE_BETTER_AUTH_SECRET:-devflow-secret-super-secure-key-32-chars-long}
     depends_on:
       devflow-api:
         condition: service_started
       devflow-db:
         condition: service_healthy
+        required: false
 
 volumes:
   devflow_db_data:
