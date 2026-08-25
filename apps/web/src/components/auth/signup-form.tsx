@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import { signUp } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 
 export default function SignupForm() {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,14 +17,20 @@ export default function SignupForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const res = await signUp.email({ name, email, password });
-    if (res.error) {
-      setError(res.error.message ?? "Pendaftaran gagal");
+
+    try {
+      const res = await signUp.email({ name, email, password });
+      if (res.error) {
+        setError(res.error.message ?? "Pendaftaran gagal");
+        setLoading(false);
+        return;
+      }
+      toast.success("Akun berhasil dibuat! Mengalihkan ke dashboard...");
+      window.location.href = "/projects";
+    } catch {
+      setError("Terjadi kesalahan jaringan saat pendaftaran.");
       setLoading(false);
-      return;
     }
-    router.push("/projects");
-    router.refresh();
   }
 
   return (
