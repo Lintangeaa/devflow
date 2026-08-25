@@ -9,6 +9,7 @@
     "lint": "turbo lint",
     "db:generate": "pnpm --filter @devflow/db db:generate",
     "db:migrate": "pnpm --filter @devflow/db db:migrate",
+    "db:seed": "pnpm --filter api exec tsx ../../packages/db/src/seed.ts",
     "db:studio": "pnpm --filter @devflow/db db:studio"
   },
   "devDependencies": {
