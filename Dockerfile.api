@@ -28,4 +28,4 @@ RUN chown -R apijs:nodejs /app
 
 USER apijs
 EXPOSE 4000
-CMD ["pnpm", "--filter", "api", "start"]
+CMD ["node", "node_modules/.pnpm/tsx@4.23.12/node_modules/tsx/dist/cli.mjs", "apps/api/src/index.ts"]
