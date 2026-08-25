@@ -12,6 +12,8 @@ RUN pnpm install --frozen-lockfile --filter=web...
 
 # Build
 FROM base AS builder
+ARG API_INTERNAL_URL=http://devflow_api:4000
+ENV API_INTERNAL_URL=$API_INTERNAL_URL
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm turbo run build --filter=web
