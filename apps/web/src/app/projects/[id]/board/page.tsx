@@ -28,6 +28,12 @@ import { Badge, PriorityBadge, TypeBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { CreateTicketForm } from "@/components/tickets/create-ticket-form";
 import { TicketDetailModal, type TicketWithMeta } from "@/components/tickets/ticket-detail-modal";
+import {
+  BoardFilterBar,
+  defaultFilterState,
+  matchTicketFilter,
+  type BoardFilterState,
+} from "@/components/tickets/board-filter-bar";
 
 export default function ProjectBoardPage() {
   const { id } = useParams<{ id: string }>();
@@ -61,6 +67,8 @@ export default function ProjectBoardPage() {
     loadTasks();
   }, [loadTasks]);
 
+  const [filters, setFilters] = useState<BoardFilterState>(defaultFilterState);
+
   // Sorted phases by order
   const sortedPhases = useMemo(() => {
     return [...phases].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -68,12 +76,16 @@ export default function ProjectBoardPage() {
 
   const lastPhase = sortedPhases.length > 0 ? sortedPhases[sortedPhases.length - 1] : null;
 
+  const filteredTickets = useMemo(() => {
+    return tickets.filter((t) => matchTicketFilter(t, filters));
+  }, [tickets, filters]);
+
   const ticketsByPhase = useMemo(() => {
     const map: Record<string, TicketWithMeta[]> = { unphased: [] };
     for (const p of phases) {
       map[p.id] = [];
     }
-    for (const t of tickets) {
+    for (const t of filteredTickets) {
       if (t.phaseId && map[t.phaseId]) {
         map[t.phaseId].push(t);
       } else {
@@ -81,7 +93,7 @@ export default function ProjectBoardPage() {
       }
     }
     return map;
-  }, [tickets, phases]);
+  }, [filteredTickets, phases]);
 
   async function createDefaultPhases() {
     if (!project) return;
@@ -277,6 +289,16 @@ export default function ProjectBoardPage() {
           )}
         </div>
       )}
+
+      {/* Quick Filter Toolbar */}
+      <BoardFilterBar
+        filters={filters}
+        onFilterChange={setFilters}
+        members={members}
+        totalCount={tickets.length}
+        filteredCount={filteredTickets.length}
+        showSeverity={false}
+      />
 
       {/* Board Columns View with DndContext */}
       <DndContext

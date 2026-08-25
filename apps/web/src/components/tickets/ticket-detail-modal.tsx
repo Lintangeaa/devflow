@@ -25,6 +25,8 @@ import {
   type BugDetails,
   type Ticket,
 } from "@devflow/shared";
+import { authClient } from "@/lib/auth-client";
+import { CommentSection } from "./comment-section";
 import type { ProjectMember } from "@/components/projects/members-modal";
 
 export type Phase = { id: string; name: string; order: number; color: string };
@@ -140,6 +142,10 @@ export function TicketDetailModal({
   onUpdated,
   onDeleted,
 }: TicketDetailModalProps) {
+  const { data: session } = authClient.useSession();
+  const currentUserId = session?.user?.id;
+  const isOwner = members.some((m) => m.userId === currentUserId && m.role === "owner");
+
   const [headline, setHeadline] = useState("");
   const [description, setDescription] = useState("");
   const [bugFields, setBugFields] = useState<BugDetails>({
@@ -776,6 +782,15 @@ export function TicketDetailModal({
                 </div>
               )}
             </div>
+
+            {/* Comments & Discussion section */}
+            <CommentSection
+              projectId={projectId}
+              ticketId={ticket.id}
+              members={members}
+              currentUserId={currentUserId}
+              isOwner={isOwner}
+            />
           </form>
 
           {/* Footer actions */}

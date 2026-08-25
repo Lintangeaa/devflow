@@ -30,6 +30,12 @@ import {
   type Phase,
   type TicketWithMeta,
 } from "@/components/tickets/ticket-detail-modal";
+import {
+  BoardFilterBar,
+  defaultFilterState,
+  matchTicketFilter,
+  type BoardFilterState,
+} from "@/components/tickets/board-filter-bar";
 import type { ProjectMember } from "@/components/projects/members-modal";
 import { BUG_STATUSES } from "@devflow/shared";
 
@@ -94,12 +100,18 @@ export function BugKanban({
     loadBugs();
   }, [loadBugs]);
 
+  const [filters, setFilters] = useState<BoardFilterState>(defaultFilterState);
+
+  const filteredTickets = useMemo(() => {
+    return tickets.filter((t) => matchTicketFilter(t, filters));
+  }, [tickets, filters]);
+
   const ticketsByStatus = useMemo(() => {
     const map: Record<string, TicketWithMeta[]> = {};
     for (const s of BUG_STATUSES) {
       map[s] = [];
     }
-    for (const t of tickets) {
+    for (const t of filteredTickets) {
       const st = t.status || "new";
       if (map[st]) {
         map[st].push(t);
@@ -109,7 +121,7 @@ export function BugKanban({
       }
     }
     return map;
-  }, [tickets]);
+  }, [filteredTickets]);
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
@@ -257,7 +269,17 @@ export function BugKanban({
         />
       )}
 
-      {/* 5-Column Kanban with DndContext */}
+      {/* Quick Filter Toolbar */}
+      <BoardFilterBar
+        filters={filters}
+        onFilterChange={setFilters}
+        members={members}
+        totalCount={tickets.length}
+        filteredCount={filteredTickets.length}
+        showSeverity={true}
+      />
+
+      {/* 6-Column Kanban with DndContext */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
