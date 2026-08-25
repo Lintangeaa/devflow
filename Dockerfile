@@ -28,6 +28,8 @@ COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static/
 COPY --from=builder /app/apps/web/public ./apps/web/public/
 COPY --from=builder /app/apps/web/server.js ./apps/web/server.js
+# The custom WebSocket server externalizes `ws`, so copy it into standalone runtime.
+COPY --from=builder /app/node_modules/.pnpm/ws@8.21.3/node_modules/ws ./node_modules/ws
 
 USER nextjs
 EXPOSE 3000
