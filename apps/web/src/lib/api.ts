@@ -5,7 +5,12 @@ import { auth } from "@/lib/auth";
 export type Authed = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 
 export async function getSession() {
-  return auth.api.getSession({ headers: await headers() });
+  try {
+    return await auth.api.getSession({ headers: await headers() });
+  } catch (error) {
+    console.error("[Auth] getSession error:", error);
+    return null;
+  }
 }
 
 export async function requireUser() {
