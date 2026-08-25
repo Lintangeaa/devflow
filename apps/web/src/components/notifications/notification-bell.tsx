@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Bell, Check, CheckCheck, Inbox } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { toast } from "sonner";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 
 export interface NotificationItem {
@@ -36,6 +37,9 @@ function timeAgo(dateString: string): string {
 
 export function NotificationBell() {
   const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const isAuthenticated = Boolean(session?.user);
+
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -61,7 +65,7 @@ export function NotificationBell() {
   }, []);
 
   const connectWebSocket = useCallback(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !isAuthenticated) return;
 
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
       return;
@@ -69,7 +73,12 @@ export function NotificationBell() {
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws/notifications`;
+    const defaultWsHost =
+      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+        ? `${window.location.hostname}:4000`
+        : host;
+    const wsUrl =
+      process.env.NEXT_PUBLIC_WS_URL || `${protocol}//${defaultWsHost}/ws/notifications`;
 
     try {
       const ws = new WebSocket(wsUrl);
@@ -84,30 +93,33 @@ export function NotificationBell() {
       };
 
       ws.onerror = () => {
-        // Will close and trigger onclose reconnect
+        // Handled silently
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         wsRef.current = null;
-        if (isMountedRef.current) {
+        // Don't auto-reconnect if server rejected with 401 or user logged out
+        if (isMountedRef.current && isAuthenticated && event.code !== 1008) {
           reconnectTimeoutRef.current = setTimeout(() => {
             connectWebSocket();
           }, 3000);
         }
       };
     } catch {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && isAuthenticated) {
         reconnectTimeoutRef.current = setTimeout(() => {
           connectWebSocket();
         }, 5000);
       }
     }
-  }, [fetchNotifications]);
+  }, [fetchNotifications, isAuthenticated]);
 
   useEffect(() => {
     isMountedRef.current = true;
-    fetchNotifications();
-    connectWebSocket();
+    if (isAuthenticated) {
+      fetchNotifications();
+      connectWebSocket();
+    }
 
     return () => {
       isMountedRef.current = false;
@@ -117,7 +129,7 @@ export function NotificationBell() {
         wsRef.current = null;
       }
     };
-  }, [fetchNotifications, connectWebSocket]);
+  }, [isAuthenticated, fetchNotifications, connectWebSocket]);
 
   async function handleMarkAllRead() {
     setLoading(true);

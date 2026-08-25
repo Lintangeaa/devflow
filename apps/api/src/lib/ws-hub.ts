@@ -1,14 +1,6 @@
 import type { WebSocket } from "ws";
 
-declare global {
-  var __wsClients: Map<string, Set<WebSocket>> | undefined;
-}
-
-if (!globalThis.__wsClients) {
-  globalThis.__wsClients = new Map<string, Set<WebSocket>>();
-}
-
-export const wsClients: Map<string, Set<WebSocket>> = globalThis.__wsClients;
+export const wsClients = new Map<string, Set<WebSocket>>();
 
 export function registerSocket(userId: string, ws: WebSocket) {
   if (!wsClients.has(userId)) {

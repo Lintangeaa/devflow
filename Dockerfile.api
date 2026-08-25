@@ -1,0 +1,29 @@
+FROM node:24-alpine AS base
+RUN npm install -g pnpm@11.23.0 --no-fund --no-audit
+WORKDIR /app
+
+# Install deps
+FROM base AS deps
+COPY pnpm-lock.yaml* pnpm-workspace.yaml package.json ./
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY apps/api/package.json ./apps/api/package.json
+RUN pnpm install --frozen-lockfile --filter=api...
+
+# Build
+FROM base AS builder
+COPY . .
+
+# Runner
+FROM base AS runner
+ENV NODE_ENV=production
+ENV PORT=4000
+ENV HOSTNAME=0.0.0.0
+WORKDIR /app
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 apijs
+
+COPY --from=builder /app ./
+
+USER apijs
+EXPOSE 4000
+CMD ["pnpm", "--filter", "api", "start"]

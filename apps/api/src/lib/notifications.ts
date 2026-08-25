@@ -1,5 +1,5 @@
 import { db, schema } from "@devflow/db";
-import { broadcastToUser } from "./ws-hub";
+import { broadcastToUser } from "./ws-hub.js";
 
 export interface CreateNotificationParams {
   userId: string;

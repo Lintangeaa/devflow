@@ -16,7 +16,7 @@ const secretKey = process.env.S3_SECRET_KEY ?? "devflow-secret";
 export const s3 = new S3Client({
   region,
   endpoint,
-  forcePathStyle: true, // required for MinIO / non-AWS S3
+  forcePathStyle: true,
   credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
 });
 

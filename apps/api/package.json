@@ -1,0 +1,34 @@
+{
+  "name": "api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --noEmit",
+    "start": "tsx src/index.ts",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3",
+    "@aws-sdk/s3-request-presigner": "^3",
+    "@devflow/db": "workspace:*",
+    "@devflow/shared": "workspace:*",
+    "@hono/node-server": "^1.13.8",
+    "better-auth": "^1",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.36",
+    "exceljs": "^4",
+    "hono": "^4.7.2",
+    "pg": "^8",
+    "ws": "^8.18.1",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/pg": "^8.11.11",
+    "@types/ws": "^8.5.14",
+    "tsx": "^4.19.3",
+    "typescript": "^5"
+  }
+}

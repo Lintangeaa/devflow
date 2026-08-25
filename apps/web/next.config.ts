@@ -1,10 +1,18 @@
 import type { NextConfig } from "next";
 
+const apiUrl = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+
 const nextConfig: NextConfig = {
   output: "standalone",
-  // Workspace packages (drizzle db, shared) must be transpiled for the client/server
   transpilePackages: ["@devflow/db", "@devflow/shared"],
-  serverExternalPackages: ["pg", "better-auth", "ws"],
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${apiUrl}/api/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

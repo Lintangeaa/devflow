@@ -14,8 +14,8 @@ services:
       - devflow_db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U devflow -p 5438"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
 
   devflow-minio:
@@ -32,17 +32,54 @@ services:
     volumes:
       - devflow_minio_data:/data
 
-  # Uncomment to run the app container (or run as part of CI image):
-  # devflow-web:
-  #   image: devflow:latest
-  #   container_name: devflow_web
-  #   restart: unless-stopped
-  #   ports:
-  #     - "127.0.0.1:3000:3000"
-  #   env_file: ./.env
-  #   depends_on:
-  #     - devflow-db
-  #     - devflow-minio
+  devflow-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: devflow_api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://devflow:devflow@devflow-db:5438/devflow
+      BETTER_AUTH_SECRET: devflow-secret-super-secure-key-32-chars-long
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      S3_ENDPOINT: http://devflow-minio:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: devflow
+      S3_ACCESS_KEY: devflow
+      S3_SECRET_KEY: devflow-secret
+    depends_on:
+      devflow-db:
+        condition: service_healthy
+      devflow-minio:
+        condition: service_started
+
+  devflow-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devflow_web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: postgresql://devflow:devflow@devflow-db:5438/devflow
+      API_INTERNAL_URL: http://devflow-api:4000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: devflow-secret-super-secure-key-32-chars-long
+    depends_on:
+      devflow-api:
+        condition: service_started
+      devflow-db:
+        condition: service_healthy
 
 volumes:
   devflow_db_data:

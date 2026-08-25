@@ -2,34 +2,31 @@ FROM node:24-alpine AS base
 RUN npm install -g pnpm@11.23.0 --no-fund --no-audit
 WORKDIR /app
 
-# Install deps (only manifests, so build-base layers cache well)
+# Install deps
 FROM base AS deps
-COPY pnpm-lock.yaml* pnpm-workspace.yaml package.json .npmrc ./
-RUN mkdir -p /app/packages/db /app/packages/shared /app/apps/web
-COPY packages/db/package.json /app/packages/db/package.json
-COPY packages/shared/package.json /app/packages/shared/package.json
-COPY apps/web/package.json /app/apps/web/package.json
-RUN pnpm install --frozen-lockfile --filter=web
+COPY pnpm-lock.yaml* pnpm-workspace.yaml package.json ./
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY apps/web/package.json ./apps/web/package.json
+RUN pnpm install --frozen-lockfile --filter=web...
 
 # Build
 FROM base AS builder
 COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm turbo run build --filter=web
 
-# Runner
+# Runner (Standard Next.js 15 Standalone)
 FROM base AS runner
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV HOSTNAME=127.0.0.1
+ENV HOSTNAME=0.0.0.0
 WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static/
 COPY --from=builder /app/apps/web/public ./apps/web/public/
-COPY --from=builder /app/apps/web/server.js ./apps/web/server.js
-# The custom WebSocket server externalizes `ws`, so copy it into standalone runtime.
-COPY --from=builder /app/node_modules/.pnpm/ws@8.21.3/node_modules/ws ./node_modules/ws
 
 USER nextjs
 EXPOSE 3000
