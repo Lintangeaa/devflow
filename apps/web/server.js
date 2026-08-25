@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const path = require("path");
+const fs = require("fs");
 const http = require("http");
 const { WebSocketServer } = require("ws");
 const NextNodeServer = require("next/dist/server/next-server").default;
@@ -30,9 +31,40 @@ const nextServer = new NextNodeServer({
   minimalMode: false,
 });
 const handler = nextServer.getRequestHandler();
+const publicDir = path.join(dir, "public");
+const publicMimeTypes = {
+  ".ico": "image/x-icon",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+};
+
+function tryServePublicAsset(req, res) {
+  const pathname = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`).pathname;
+  const relativePath = decodeURIComponent(pathname).replace(/^\/+/, "");
+  const filePath = path.resolve(publicDir, relativePath);
+  if (!filePath.startsWith(`${publicDir}${path.sep}`)) return false;
+
+  let stat;
+  try {
+    stat = fs.statSync(filePath);
+  } catch {
+    return false;
+  }
+  if (!stat.isFile()) return false;
+
+  res.statusCode = 200;
+  res.setHeader("Content-Type", publicMimeTypes[path.extname(filePath).toLowerCase()] || "application/octet-stream");
+  res.setHeader("Content-Length", stat.size);
+  fs.createReadStream(filePath).pipe(res);
+  return true;
+}
 
 const server = http.createServer(async (req, res) => {
   try {
+    if (req.method === "GET" && tryServePublicAsset(req, res)) return;
     await handler(req, res);
   } catch (err) {
     console.error("Error handling HTTP request:", req.url, err);
