@@ -331,16 +331,19 @@ export function TicketDetailModal({
 
   const validStatuses = ticket.type === "bug" ? BUG_STATUSES : TASK_STATUSES;
 
-  const statusOptions: ComboboxOption[] = validStatuses.map((s) => ({
-    value: s,
-    label: s.replace("_", " "),
-    badge: (
-      <Badge className="capitalize text-[10px]">
-        {s.replace("_", " ")}
-      </Badge>
-    ),
-    hideLabel: true,
-  }));
+  const statusOptions: ComboboxOption[] = validStatuses.map((s) => {
+    const label = s === "ready_for_qa" ? "Ready for QA" : s.replace(/_/g, " ");
+    return {
+      value: s,
+      label,
+      badge: (
+        <Badge className="capitalize text-[10px]">
+          {label}
+        </Badge>
+      ),
+      hideLabel: true,
+    };
+  });
 
   const priorityOptions: ComboboxOption[] = PRIORITIES.map((p) => ({
     value: p,

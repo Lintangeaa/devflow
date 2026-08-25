@@ -3,12 +3,13 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@devflow/db";
 import { bugDetailsSchema, ticketUpdateSchema } from "@devflow/shared";
 import { requireProjectMember } from "@/lib/access";
+import { createNotification, formatStatusLabel } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string; ticketId: string }> };
 
 export async function PATCH(req: Request, { params }: Ctx) {
   const { id, ticketId } = await params;
-  await requireProjectMember(id);
+  const { user } = await requireProjectMember(id);
   const body = await req.json().catch(() => null);
   const parsed = ticketUpdateSchema.safeParse(body);
   if (!parsed.success) {
@@ -23,6 +24,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
       type: schema.tickets.type,
       parentId: schema.tickets.parentId,
       status: schema.tickets.status,
+      assigneeId: schema.tickets.assigneeId,
+      creatorId: schema.tickets.creatorId,
+      headline: schema.tickets.headline,
     })
     .from(schema.tickets)
     .where(and(eq(schema.tickets.id, ticketId), eq(schema.tickets.projectId, id)));
@@ -61,26 +65,91 @@ export async function PATCH(req: Request, { params }: Ctx) {
     .where(and(eq(schema.tickets.id, ticketId), eq(schema.tickets.projectId, id)))
     .returning();
 
-  // Auto-sync: when a task ticket becomes 'done' and has a parentId, update parent bug to 'resolved' unless already resolved/closed
+  // Notification Trigger: Assignee changed
+  if (
+    d.assigneeId !== undefined &&
+    d.assigneeId !== existing.assigneeId &&
+    d.assigneeId &&
+    d.assigneeId !== user.id
+  ) {
+    await createNotification({
+      userId: d.assigneeId,
+      type: "assigned",
+      ticketId: updated.id,
+      projectId: id,
+      message: `Kamu di-assign ke ${updated.type === "bug" ? "bug" : "task"}: ${updated.headline}`,
+    });
+  }
+
+  // Notification Trigger: Status changed
+  if (d.status !== undefined && d.status !== existing.status) {
+    const notifyUserIds = Array.from(
+      new Set(
+        [updated.assigneeId, updated.creatorId].filter(
+          (uId): uId is string => Boolean(uId) && uId !== user.id,
+        ),
+      ),
+    );
+
+    for (const targetId of notifyUserIds) {
+      await createNotification({
+        userId: targetId,
+        type: "status_changed",
+        ticketId: updated.id,
+        projectId: id,
+        message: `Status ${updated.type === "bug" ? "bug" : "task"} "${updated.headline}" diubah menjadi ${formatStatusLabel(updated.status)}`,
+      });
+    }
+  }
+
+  // Auto-sync: when a task ticket becomes 'done' and has a parentId, update parent bug to 'ready_for_qa' unless already ready_for_qa/resolved/closed
   const effectiveType = d.type ?? existing.type;
   const effectiveStatus = d.status ?? existing.status;
   const effectiveParentId = d.parentId !== undefined ? d.parentId : existing.parentId;
 
   if (effectiveType === "task" && effectiveStatus === "done" && effectiveParentId) {
     const [parent] = await db
-      .select({ id: schema.tickets.id, type: schema.tickets.type, status: schema.tickets.status })
+      .select({
+        id: schema.tickets.id,
+        type: schema.tickets.type,
+        status: schema.tickets.status,
+        headline: schema.tickets.headline,
+        assigneeId: schema.tickets.assigneeId,
+        creatorId: schema.tickets.creatorId,
+      })
       .from(schema.tickets)
       .where(and(eq(schema.tickets.id, effectiveParentId), eq(schema.tickets.projectId, id)));
 
-    if (parent && parent.type === "bug" && !["resolved", "closed"].includes(parent.status)) {
+    if (
+      parent &&
+      parent.type === "bug" &&
+      !["ready_for_qa", "resolved", "closed"].includes(parent.status)
+    ) {
       await db
         .update(schema.tickets)
         .set({
-          status: "resolved",
-          resolvedAt: new Date(),
+          status: "ready_for_qa",
           updatedAt: new Date(),
         })
         .where(eq(schema.tickets.id, parent.id));
+
+      const parentNotifyUserIds = Array.from(
+        new Set(
+          [parent.assigneeId, parent.creatorId].filter(
+            (uId): uId is string => Boolean(uId) && uId !== user.id,
+          ),
+        ),
+      );
+
+      for (const targetId of parentNotifyUserIds) {
+        await createNotification({
+          userId: targetId,
+          type: "status_changed",
+          ticketId: parent.id,
+          projectId: id,
+          message: `Bug "${parent.headline}" otomatis berstatus Ready for QA karena task terkait telah selesai`,
+        });
+      }
     }
   }
 

@@ -50,6 +50,7 @@ const BUG_STATUS_CONFIG: Record<
   new: { title: "New", color: "#3b82f6", bg: "bg-blue-500/10" },
   open: { title: "Open", color: "#eab308", bg: "bg-yellow-500/10" },
   in_progress: { title: "In Progress", color: "#f97316", bg: "bg-orange-500/10" },
+  ready_for_qa: { title: "Ready for QA", color: "#8b5cf6", bg: "bg-purple-500/10" },
   resolved: { title: "Resolved", color: "#10b981", bg: "bg-emerald-500/10" },
   closed: { title: "Closed", color: "#6b7280", bg: "bg-zinc-500/10" },
 };

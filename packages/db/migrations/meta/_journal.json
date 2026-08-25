@@ -36,6 +36,13 @@
       "when": 1787594916306,
       "tag": "0004_flimsy_lorna_dane",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787657580929,
+      "tag": "0005_jazzy_valkyrie",
+      "breakpoints": true
     }
   ]
 }

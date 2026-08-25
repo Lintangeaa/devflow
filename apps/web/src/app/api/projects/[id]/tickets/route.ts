@@ -4,6 +4,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db, schema } from "@devflow/db";
 import { ticketSchema } from "@devflow/shared";
 import { requireProjectMember } from "@/lib/access";
+import { createNotification } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -154,6 +155,16 @@ export async function POST(req: Request, { params }: Ctx) {
       tags: d.tags ?? [],
     })
     .returning();
+
+  if (ticket.assigneeId && ticket.assigneeId !== user.id) {
+    await createNotification({
+      userId: ticket.assigneeId,
+      type: "assigned",
+      ticketId: ticket.id,
+      projectId: id,
+      message: `Kamu di-assign ke ${ticket.type === "bug" ? "bug" : "task"}: ${ticket.headline}`,
+    });
+  }
 
   return NextResponse.json(ticket, { status: 201 });
 }

@@ -6,7 +6,14 @@ import { z } from "zod";
 export const PRIORITIES = ["low", "medium", "high", "critical"] as const;
 export const SEVERITIES = ["minor", "major", "blocker", "crash"] as const;
 export const TASK_STATUSES = ["backlog", "todo", "in_progress", "done"] as const;
-export const BUG_STATUSES = ["new", "open", "in_progress", "resolved", "closed"] as const;
+export const BUG_STATUSES = [
+  "new",
+  "open",
+  "in_progress",
+  "ready_for_qa",
+  "resolved",
+  "closed",
+] as const;
 export const TICKET_TYPES = ["task", "bug"] as const;
 export const PROJECT_MEMBER_ROLES = ["owner", "member"] as const;
 export const SYSTEM_ROLES = ["admin", "user"] as const;

@@ -36,6 +36,7 @@
     "recharts": "^2",
     "server-only": "^0.0.1",
     "tailwind-merge": "^2",
+    "ws": "^8.21.3",
     "zod": "^3"
   },
   "devDependencies": {
@@ -44,6 +45,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.23",
     "postcss": "^8",

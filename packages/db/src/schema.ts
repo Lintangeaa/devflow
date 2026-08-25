@@ -230,6 +230,28 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id").notNull(), // -> betterauth.user.id
+    type: text("type").notNull(), // "assigned" | "status_changed"
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    message: text("message").notNull(),
+    read: boolean("read").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("notifications_user_read_idx").on(t.userId, t.read),
+    index("notifications_user_created_idx").on(t.userId, t.createdAt),
+  ],
+);
+
 export const schema = {
   user,
   session,
@@ -242,4 +264,5 @@ export const schema = {
   comments,
   media,
   activities,
+  notifications,
 };

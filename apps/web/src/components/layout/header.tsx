@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { ThemeSelector } from "@/components/theme/theme-selector";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 export function Header() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-2">
+          <NotificationBell />
           <ThemeSelector />
           <Button variant="ghost" size="sm" onClick={logout} aria-label="Log out">
             <LogOut className="h-4 w-4" />
