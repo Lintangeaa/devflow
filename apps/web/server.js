@@ -35,6 +35,11 @@ const publicDir = path.join(dir, "public");
 const nextStaticDir = path.join(dir, ".next", "static");
 const publicMimeTypes = {
   ".ico": "image/x-icon",
+  ".css": "text/css",
+  ".js": "application/javascript",
+  ".map": "application/json",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
