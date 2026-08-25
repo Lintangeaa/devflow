@@ -32,6 +32,7 @@ const nextServer = new NextNodeServer({
 });
 const handler = nextServer.getRequestHandler();
 const publicDir = path.join(dir, "public");
+const nextStaticDir = path.join(dir, ".next", "static");
 const publicMimeTypes = {
   ".ico": "image/x-icon",
   ".png": "image/png",
@@ -43,9 +44,11 @@ const publicMimeTypes = {
 
 function tryServePublicAsset(req, res) {
   const pathname = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`).pathname;
-  const relativePath = decodeURIComponent(pathname).replace(/^\/+/, "");
-  const filePath = path.resolve(publicDir, relativePath);
-  if (!filePath.startsWith(`${publicDir}${path.sep}`)) return false;
+  const isNextStatic = pathname.startsWith("/_next/static/");
+  const rootDir = isNextStatic ? nextStaticDir : publicDir;
+  const relativePath = decodeURIComponent(isNextStatic ? pathname.slice("/_next/static/".length) : pathname).replace(/^\/+/, "");
+  const filePath = path.resolve(rootDir, relativePath);
+  if (!filePath.startsWith(`${rootDir}${path.sep}`)) return false;
 
   let stat;
   try {
