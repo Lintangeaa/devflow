@@ -2,11 +2,9 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { Download, Users } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-import { Header } from "@/components/layout/header";
-import { ProjectSidebar } from "@/components/layout/project-sidebar";
+import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { MembersModal, type ProjectMember } from "@/components/projects/members-modal";
@@ -75,23 +73,49 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
 
   if (authChecking || (loading && !project)) {
     return (
-      <>
-        <Header />
-        <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center text-sm text-muted-foreground">
+      <AppShell>
+        <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
           Memuat project...
-        </main>
-      </>
+        </div>
+      </AppShell>
     );
   }
 
   if (!project) {
     return (
-      <>
-        <Header />
-        <main className="p-6">Project tidak ditemukan.</main>
-      </>
+      <AppShell>
+        <div className="p-6 text-sm text-muted-foreground">Project tidak ditemukan.</div>
+      </AppShell>
     );
   }
+
+  const projectActions = (
+    <div className="flex items-center gap-1.5">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowMembersModal(true)}
+        className="h-8 gap-1.5 text-xs font-medium"
+      >
+        <Users className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="hidden sm:inline">Members</span>
+        <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] text-muted-foreground">
+          {members.length}
+        </span>
+      </Button>
+      <a
+        href={`/api/projects/${id}/export`}
+        target="_blank"
+        rel="noreferrer"
+        onClick={() => toast.info("Laporan Excel sedang diunduh...")}
+      >
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium">
+          <Download className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="hidden sm:inline">Export</span>
+        </Button>
+      </a>
+    </div>
+  );
 
   return (
     <ProjectContext.Provider
@@ -106,57 +130,17 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
         reload: loadProjectData,
       }}
     >
-      <div className="h-screen flex flex-col bg-background overflow-hidden">
-        <Header />
-        <div className="flex flex-1 overflow-hidden">
-          <ProjectSidebar projectId={id} />
-
-          <div className="flex-1 overflow-y-auto">
-            {/* Top Project Header Chrome */}
-            <div className="border-b bg-background/95 backdrop-blur-xs px-6 py-4">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <Link href="/projects" className="text-xs text-muted-foreground hover:underline">
-                    ← Kembali ke Projects
-                  </Link>
-                  <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">{project.name}</h1>
-                  {project.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{project.description}</p>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowMembersModal(true)}
-                    className="gap-1.5"
-                  >
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>Members</span>
-                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                      {members.length}
-                    </span>
-                  </Button>
-                  <a
-                    href={`/api/projects/${id}/export`}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={() => toast.info("Laporan Excel sedang diunduh...")}
-                  >
-                    <Button variant="outline" size="sm" className="gap-1.5">
-                      <Download className="h-4 w-4 text-muted-foreground" />
-                      <span>Export Excel</span>
-                    </Button>
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Page content */}
-            <main className="p-6">{children}</main>
-          </div>
+      <AppShell projectName={project.name} actions={projectActions}>
+        {/* Project Context Header */}
+        <div className="mb-6 flex flex-col gap-1 border-b border-border/40 pb-4">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{project.name}</h1>
+          {project.description && (
+            <p className="text-xs text-muted-foreground">{project.description}</p>
+          )}
         </div>
+
+        {/* Child Pages (Overview, Board, Bugs, Ticket) */}
+        <div>{children}</div>
 
         {/* Members Modal */}
         <MembersModal
@@ -166,7 +150,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
           onOpenChange={setShowMembersModal}
           onMembersUpdated={loadProjectData}
         />
-      </div>
+      </AppShell>
     </ProjectContext.Provider>
   );
 }

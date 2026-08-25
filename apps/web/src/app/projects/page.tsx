@@ -3,7 +3,7 @@ import Link from "next/link";
 import { eq, inArray, desc } from "drizzle-orm";
 import { db, schema } from "@devflow/db";
 import { requireUser } from "@/lib/api";
-import { Header } from "@/components/layout/header";
+import { AppShell } from "@/components/layout/app-shell";
 import { NewProjectForm } from "@/components/projects/new-project-form";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -32,13 +32,12 @@ export default async function ProjectsPage() {
   }
 
   return (
-    <>
-      <Header />
-      <main className="mx-auto max-w-5xl p-6">
+    <AppShell>
+      <div className="mx-auto max-w-5xl">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">Projects</h1>
-            <p className="text-sm text-muted-foreground">Halo, {user.name}</p>
+            <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Halo, {user.name}. Kelola project dan tiket tim Anda di sini.</p>
           </div>
           <NewProjectForm />
         </div>
@@ -55,20 +54,25 @@ export default async function ProjectsPage() {
             {projects.map((p) => (
               <Link
                 key={p.id}
-                href={`/projects/${p.id}`}
-                className="rounded-lg border bg-background p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md"
+                href={`/projects/${p.id}/board`}
+                className="group rounded-xl border border-border/80 bg-background/60 p-5 shadow-2xs transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md hover:bg-muted/20"
               >
                 <div className="flex items-center justify-between">
-                  <h2 className="font-semibold">{p.name}</h2>
-                  <Badge>{memberships.find((m) => m.projectId === p.id)?.role}</Badge>
+                  <h2 className="font-semibold text-base group-hover:text-primary transition-colors">{p.name}</h2>
+                  <Badge variant="neutral" className="text-[10px] uppercase font-medium">
+                    {memberships.find((m) => m.projectId === p.id)?.role}
+                  </Badge>
                 </div>
-                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{p.description}</p>
-                <p className="mt-3 text-xs text-muted-foreground">{p.slug}</p>
+                <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{p.description || "Tidak ada deskripsi project."}</p>
+                <div className="mt-4 flex items-center justify-between pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+                  <span className="font-mono text-[10px] opacity-80">{p.slug}</span>
+                  <span className="font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">Buka Board →</span>
+                </div>
               </Link>
             ))}
           </div>
         )}
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }
