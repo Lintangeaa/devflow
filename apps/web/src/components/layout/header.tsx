@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
@@ -20,8 +21,16 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
         <div className="flex items-center gap-6">
-          <Link href="/projects" className="font-semibold text-primary">
-            Devflow
+          <Link href="/projects" className="flex items-center gap-2.5 font-semibold text-primary">
+            <Image
+              src="/devflow-logo.png"
+              alt="Devflow logo"
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-lg object-cover shadow-sm"
+              priority
+            />
+            <span>Devflow</span>
           </Link>
           <nav className="flex items-center gap-4 text-sm text-muted-foreground">
             <Link href="/projects" className="hover:text-foreground">

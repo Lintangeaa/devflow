@@ -12,6 +12,11 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: { default: "Devflow", template: "%s · Devflow" },
   description: "Internal dev team management + bug tracker.",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/devflow-logo.png",
+  },
 };
 
 export const viewport: Viewport = {
